@@ -25,6 +25,12 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Validate launcher scripts and help
+        run: |
+          sh -n run.sh
+          sh -n install-desktop.sh
+          ./run.sh --help
+          ./install-desktop.sh --help
       - name: Check Python syntax
         run: python -m compileall -q core main.py gui.py tests
       - name: Check CLI help output
