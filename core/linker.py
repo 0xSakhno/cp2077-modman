@@ -1,4 +1,6 @@
 import os
+import filecmp
+import uuid
 import shutil
 import tempfile
 from pathlib import Path
@@ -161,6 +163,62 @@ class ModManager:
         mods[mod_name]["enabled"] = False
         mods[mod_name]["links"] = []
         self.state_mgr.save()
+
+
+    def inspect_reconcile(self, mod_name: str):
+        """Read-only check of tracked deployed files."""
+        mods = self.state_mgr.state["mods"]
+        if mod_name not in mods:
+            raise KeyError(f"Mod not found: {mod_name}")
+        if not mods[mod_name]["enabled"]:
+            raise ValueError(f"Mod is not enabled: {mod_name}")
+        root = MODS_DIR / mod_name
+        report = []
+        for rel_str in mods[mod_name]["links"]:
+            rel = Path(rel_str)
+            source = root / rel
+            target = self._target(self.state_mgr.game_path, rel)
+            if target.is_symlink():
+                status = "ok" if target.resolve() == source.resolve() else "foreign_link"
+            elif target.is_file():
+                status = ("identical_copy" if source.is_file()
+                          and not source.is_symlink()
+                          and filecmp.cmp(source, target, shallow=False)
+                          else "modified_file")
+            elif target.exists():
+                status = "unexpected_target"
+            else:
+                status = "missing"
+            if status != "ok":
+                report.append((rel_str, status))
+        return report
+
+    def repair_identical_copies(self, mod_name: str):
+        """Explicitly re-link byte-identical copies, leaving other files untouched."""
+        report = self.inspect_reconcile(mod_name)
+        blockers = [(rel, status) for rel, status in report if status != "identical_copy"]
+        if blockers:
+            raise FileExistsError(f"Repair blocked by unresolved targets: {blockers}")
+        root = MODS_DIR / mod_name
+        repaired = []
+        for rel_str, _ in report:
+            rel = Path(rel_str)
+            source = root / rel
+            target = self._target(self.state_mgr.game_path, rel)
+            if (target.is_symlink() or not target.is_file()
+                    or source.is_symlink() or not source.is_file()
+                    or not filecmp.cmp(source, target, shallow=False)):
+                raise FileExistsError(f"Target changed during repair: {rel}")
+            temporary = target.with_name(target.name + ".reconcile-" + uuid.uuid4().hex)
+            target.rename(temporary)
+            try:
+                os.symlink(source, target)
+            except Exception:
+                temporary.rename(target)
+                raise
+            temporary.unlink()
+            repaired.append(str(rel))
+        return repaired
 
     def remove_mod(self, mod_name: str):
         mods = self.state_mgr.state["mods"]
