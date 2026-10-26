@@ -1493,6 +1493,7 @@ class CyberpunkModGUI(QMainWindow):
         QShortcut(QKeySequence(Qt.Key_Delete), self, self.delete_selected_mod)
         QShortcut(QKeySequence("Ctrl+O"), self, self.install_archives_dialog)
         QShortcut(QKeySequence("Ctrl+F"), self, lambda: self.search_input.setFocus())
+        QShortcut(QKeySequence("Ctrl+K"), self, lambda: self.search_input.setFocus())
 
         # ─────────────────── Initialize ───────────────────
         self.verify_game_path()
@@ -1502,7 +1503,23 @@ class CyberpunkModGUI(QMainWindow):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.drop_overlay.resize(self.size())
+        if hasattr(self, "drop_overlay"):
+            self.drop_overlay.resize(self.size())
+        if hasattr(self, "table"):
+            self._adapt_columns()
+
+    def _adapt_columns(self, *_):
+        """Keep the name readable when the library pane is narrow."""
+        self.table.setColumnHidden(3, self.table.width() < 870)
+
+    def _copy_log(self):
+        QApplication.clipboard().setText(self.log_box.toPlainText())
+        self.status_bar.showMessage("Журнал скопійовано", 2500)
+
+    def _clear_log(self):
+        self.log_box.clear()
+        self._log_lines = 0
+        self.lbl_log_count.setText("0 ЗАПИСІВ")
 
     # ────────────────────── Logging ──────────────────────
 
@@ -1514,6 +1531,8 @@ class CyberpunkModGUI(QMainWindow):
             f'<span style="color:{C_TEXT};">{message}</span>'
         )
         self.log_box.append(html)
+        self._log_lines += 1
+        self.lbl_log_count.setText(f"{self._log_lines} ЗАПИСІВ")
         sb = self.log_box.verticalScrollBar()
         sb.setValue(sb.maximum())
 
@@ -1597,10 +1616,14 @@ class CyberpunkModGUI(QMainWindow):
         exe = gp / "bin/x64/Cyberpunk2077.exe"
         if exe.exists():
             self.log("READY", f"Підключено директорію гри: <b>{gp}</b>", C_GREEN)
-            self.lbl_status_path.setText(f"ЦІЛЬ: {gp}")
+            self.lbl_status_path.setText("●  ГРУ ПІДКЛЮЧЕНО")
+            self.lbl_status_path.setToolTip(str(gp))
+            self.lbl_status_path.setStyleSheet(f"color: {C_GREEN}; font-weight: 800;")
         else:
             self.log("ERR", f"Виконуваний файл Cyberpunk2077.exe не знайдено у: {gp}", C_RED)
-            self.lbl_status_path.setText("ЦІЛЬ: ДИРЕКТОРІЮ НЕ ЗНАЙДЕНО")
+            self.lbl_status_path.setText("●  ГРУ НЕ ЗНАЙДЕНО")
+            self.lbl_status_path.setToolTip(str(gp))
+            self.lbl_status_path.setStyleSheet(f"color: {C_RED}; font-weight: 800;")
 
     def update_manual_path(self):
         new_path = self.path_input.text().strip()
