@@ -63,6 +63,22 @@ C_BORDER       = "#273347"
 C_BORDER_LIGHT = "#3c4d63"
 
 
+def compact_mod_identity(name: str) -> tuple[str, str]:
+    """Display archive metadata without changing the real storage key."""
+    match = re.match(
+        r"^(?P<title>.+?)\s+(?P<nexus>\d{2,7})\s+"
+        r"(?P<version>\d[\w.\-]*)\s+"
+        r"(?P<stamp>\d{4}-\d{2}-\d{2}T\S+)\s+\S+$",
+        name,
+    )
+    if match:
+        title = match.group("title")
+        version = match.group("version")
+        summary = title if version in title else f"{title}  ·  v{version}"
+        return summary, f"NEXUS #{match.group('nexus')}  /  ЗБІРКА {match.group('stamp')[:10]}"
+    return name, "ЛОКАЛЬНИЙ ПАКЕТ"
+
+
 # ─────────────────────── Custom Vector Icons ─────────────────────────
 class VectorIcon:
     """Renders crisp geometric vector icons dynamically without external assets or emojis."""
@@ -923,6 +939,14 @@ class ModDetailsPanel(ChamferPanel):
         )
         layout.addWidget(self.lbl_name)
 
+        self.lbl_mod_meta = QLabel("")
+        self.lbl_mod_meta.setWordWrap(True)
+        self.lbl_mod_meta.setTextFormat(Qt.PlainText)
+        self.lbl_mod_meta.setStyleSheet(
+            f"color: {C_TEXT_DIM}; font-family: 'DejaVu Sans Mono'; font-size: 10px;"
+        )
+        layout.addWidget(self.lbl_mod_meta)
+
         self.status_pill_holder = QWidget()
         self.status_pill_layout = QHBoxLayout(self.status_pill_holder)
         self.status_pill_layout.setContentsMargins(0, 1, 0, 2)
@@ -1079,7 +1103,11 @@ class ModDetailsPanel(ChamferPanel):
         self.status_pill_layout.addWidget(StatusPill(text, color, filled))
 
     def update_details(self, mod_name: str, mod_data: dict, game_path=None, mods_state=None, health=None):
-        self.lbl_name.setText(mod_name)
+        display_name, archive_metadata = compact_mod_identity(mod_name)
+        self.lbl_name.setText(display_name)
+        self.lbl_name.setToolTip(mod_name)
+        self.lbl_mod_meta.setText(archive_metadata)
+        self.lbl_mod_meta.setToolTip(mod_name)
         enabled = bool(mod_data.get("enabled", False))
         health = health or {}
         health_level = health.get("level", "disabled" if not enabled else "healthy")
@@ -1176,6 +1204,7 @@ class ModDetailsPanel(ChamferPanel):
 
     def clear_details(self):
         self.lbl_name.setText("МОД НЕ ОБРАНО")
+        self.lbl_mod_meta.setText("")
         self._set_pill("ОЧІКУВАННЯ ВИБОРУ", C_TEXT_DIM, False)
         self.set_accent(C_YELLOW)
         self.lbl_health.setText("Оберіть мод у бібліотеці")
@@ -1804,20 +1833,7 @@ class CyberpunkModGUI(QMainWindow):
 
     @staticmethod
     def _display_mod_name(name: str) -> tuple[str, str]:
-        """Hide Nexus export timestamps from the table, not from storage."""
-        match = re.match(
-            r"^(?P<title>.+?)\s+(?P<nexus>\d{2,7})\s+"
-            r"(?P<version>\d[\w.\-]*)\s+"
-            r"(?P<stamp>\d{4}-\d{2}-\d{2}T\S+)\s+\S+$",
-            name,
-        )
-        if match:
-            title = match.group("title")
-            version = match.group("version")
-            if version in title:
-                return title, f"Nexus #{match.group('nexus')}"
-            return f"{title}  ·  v{version}", f"Nexus #{match.group('nexus')}"
-        return name, "Локальна назва мода"
+        return compact_mod_identity(name)
 
     def filter_table(self, _value=None):
         self.refresh_table(recheck=False)
