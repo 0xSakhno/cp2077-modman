@@ -69,6 +69,11 @@ def main():
         assert window.status_filter.count() == 4
         assert window.mod_health[sample_mods[3][0]]["level"] == "repairable"
         assert window.lbl_list_count.text().startswith("4")
+        active_pills = [
+            pill for pill in window.details_panel.status_pill_holder.findChildren(gui.StatusPill)
+            if pill.isVisible()
+        ]
+        assert len(active_pills) == 1, "Exactly one inspector status pill must be visible"
         window.verify_all_symlinks()
         assert "REPAIR" in window.log_box.toPlainText() or "ISSUE" in window.log_box.toPlainText()
 
