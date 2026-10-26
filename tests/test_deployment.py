@@ -151,7 +151,7 @@ class DeploymentTests(unittest.TestCase):
         other = self.game / extra.relative_to(self.mods / "alpha")
         other.unlink()
         extra.unlink()
-        with self.assertRaises(FileNotFoundError):
+        with self.assertRaisesRegex(FileExistsError, "missing_source"):
             self.manager.repair_identical_copies("alpha")
         self.assertFalse(target.is_symlink())
 
