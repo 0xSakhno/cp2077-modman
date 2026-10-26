@@ -1,4 +1,4 @@
-name: Core deployment tests
+name: Deployment and UI checks
 
 on:
   push:
@@ -28,3 +28,27 @@ jobs:
         run: python -m compileall -q core gui.py tests
       - name: Run filesystem deployment unit tests
         run: python -m unittest discover -s tests -v
+
+  gui-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Install Qt bindings
+        run: python -m pip install PySide6
+      - name: Launch redesigned Qt GUI in offscreen mode
+        env:
+          QT_QPA_PLATFORM: offscreen
+          GUI_PREVIEW_PATH: gui-preview.png
+        run: python tests/gui_smoke.py
+      - name: Upload UI screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-preview
+          path: gui-preview.png
+          if-no-files-found: ignore
