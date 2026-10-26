@@ -195,6 +195,12 @@ class ModManager:
                 status = "unexpected_target"
             else:
                 status = "missing"
+            # A pending vanilla backup makes automatic relinking unsafe.
+            # Keep the UI's "repairable" state consistent with repair preflight.
+            if status in ("missing", "identical_copy"):
+                backup = target.with_suffix(target.suffix + ".vanilla_bak")
+                if backup.exists() or backup.is_symlink():
+                    status = "backup_conflict"
             if status != "ok":
                 report.append((rel_str, status))
         return report
