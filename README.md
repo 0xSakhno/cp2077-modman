@@ -14,7 +14,7 @@ Manage your mods without copying an entire mod collection into the game director
 - **Mod library** — install, enable, disable and delete individual mods, or enable/disable all; search and filter by state.
 - **Safe symlink deployment** — keep mod files in a separate local store and link them into your game installation.
 - **Conflict checks** — block collisions with files owned by other enabled mods and avoid overwriting foreign symlinks.
-- **Vanilla file preservation** — move existing game files to adjacent \`.vanilla_bak\` files before deploying links when necessary, and restore them when safely disabling mods.
+- **Vanilla file preservation** — move existing game files to adjacent `.vanilla_bak` files before deploying links when necessary, and restore them when safely disabling mods.
 - **Mod Health Check** — identify healthy, repairable and manually blocked deployments. Inspect details in the library and activity log.
 - **Manual Safe Repair** — recreate missing symlinks or replace regular-file copies only when their contents are identical to the stored mod originals. Never download or silently replace modified files.
 - **Archive validation** — stream files through libarchive and reject unsafe paths, symlinks, hardlinks, special files and oversized extractions.
@@ -30,15 +30,15 @@ Manage your mods without copying an entire mod collection into the game director
 - **System libarchive runtime** (needed to install mods from archives).
 - A **legitimate installed copy of Cyberpunk 2077**. The game and mods are **not included**.
 
-The library reader supports ZIP, 7z, RAR and TAR-family archives to the extent supported by your distribution's libarchive build. The GUI file picker and drag-and-drop accept \`.zip\`, \`.7z\`, \`.rar\` and \`.tar.gz\`. Some individual mod archives may need manual repackaging or may not be compatible with the manager.
+The library reader supports ZIP, 7z, RAR and TAR-family archives to the extent supported by your distribution's libarchive build. The GUI file picker and drag-and-drop accept `.zip`, `.7z`, `.rar` and `.tar.gz`. Some individual mod archives may need manual repackaging or may not be compatible with the manager.
 
 ### Install on Linux
 
-Install the libarchive runtime through your distribution's package manager. Package names differ: for example, \`libarchive\` on Arch/Fedora, and \`libarchive13\` or \`libarchive13t64\` on Debian/Ubuntu variants.
+Install the libarchive runtime through your distribution's package manager. Package names differ: for example, `libarchive` on Arch/Fedora, and `libarchive13` or `libarchive13t64` on Debian/Ubuntu variants.
 
 Clone the repository and create an isolated Python environment:
 
-\`\`\`bash
+```bash
 git clone https://github.com/SanyaCatMeow/cp2077-modman.git
 cd cp2077-modman
 
@@ -47,9 +47,9 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 
 python gui.py
-\`\`\`
+```
 
-For missing Qt runtime libraries (for example \`libEGL.so.1\`), install the relevant EGL/OpenGL packages provided by your distribution. Python packages alone cannot supply every system-level Qt library.
+For missing Qt runtime libraries (for example `libEGL.so.1`), install the relevant EGL/OpenGL packages provided by your distribution. Python packages alone cannot supply every system-level Qt library.
 
 ## Quick start
 
@@ -64,13 +64,13 @@ For missing Qt runtime libraries (for example \`libEGL.so.1\`), install the rele
 
 ### Steam/Proton setup
 
-For setups that require native \`version.dll\` and \`winmm.dll\`, the recommended Steam launch options are:
+For setups that require native `version.dll` and `winmm.dll`, the recommended Steam launch options are:
 
-\`\`\`text
+```text
 WINEDLLOVERRIDES="version=n,b;winmm=n,b" %command% --launcher-skip -modded
-\`\`\`
+```
 
-You can copy these options from the **Steam Settings** dialog. If the application updates your Proton prefix's \`user.reg\`, it creates a \`user.reg.bak\` backup when one is not already present. Check that the correct Proton prefix was detected before applying settings.
+You can copy these options from the **Steam Settings** dialog. If the application updates your Proton prefix's `user.reg`, it creates a `user.reg.bak` backup when one is not already present. Check that the correct Proton prefix was detected before applying settings.
 
 Steam launch integration is intended for Steam-installed copies of the game. Other launchers may require their own launch setup.
 
@@ -78,7 +78,7 @@ Steam launch integration is intended for Steam-installed copies of the game. Oth
 
 You can use the basic command-line interface instead of the GUI:
 
-\`\`\`bash
+```bash
 python main.py list
 python main.py set-path "/path/to/Cyberpunk 2077"
 python main.py add "/path/to/mod.zip"
@@ -86,21 +86,21 @@ python main.py add "/path/to/mod.7z" --name "My Mod"
 python main.py enable "My Mod"
 python main.py disable "My Mod"
 python main.py remove "My Mod"
-\`\`\`
+```
 
-**Warning:** \`remove\` deletes that mod's local files after safely disabling it. It does not delete your game saves.
+**Warning:** `remove` deletes that mod's local files after safely disabling it. It does not delete your game saves.
 
 ## How deployment works
 
 Mod files live in a separate manager-owned directory. When enabled, each file is linked into the corresponding relative path under your Cyberpunk 2077 game directory.
 
-\`\`\`text
+```text
 ~/.local/share/cp2077-modman/mods/Example Mod/r6/scripts/example.reds
                                 |
                                 | symlink
                                 v
 <Game directory>/r6/scripts/example.reds
-\`\`\`
+```
 
 A symlink is a reference to the original stored file, **not an independent copy**. Modifying a deployed file through its symlink can therefore also modify the manager's stored copy.
 
@@ -108,16 +108,16 @@ The manager keeps application data here:
 
 | Path | Purpose |
 | --- | --- |
-| \`~/.local/share/cp2077-modman/state.json\` | Installed mods, deployment state and game path |
-| \`~/.local/share/cp2077-modman/mods/\` | Stored mod files |
-| \`~/.local/share/cp2077-modman/tmp/\` | Temporary installation workspaces |
-| \`<game file>.vanilla_bak\` | Backup of a pre-existing file if a link replaces it |
+| `~/.local/share/cp2077-modman/state.json` | Installed mods, deployment state and game path |
+| `~/.local/share/cp2077-modman/mods/` | Stored mod files |
+| `~/.local/share/cp2077-modman/tmp/` | Temporary installation workspaces |
+| `<game file>.vanilla_bak` | Backup of a pre-existing file if a link replaces it |
 
 Avoid manually deleting manager-owned files or backup files. If another mod, the game or a reset utility replaces/removes a deployed link, **Verify Integrity** will help identify the issue. **Repair Mod** does not fetch original files from Nexus Mods or other websites.
 
 ## Supported mod layouts
 
-The archive normalizer recognizes common Cyberpunk 2077 roots, including \`archive/\`, \`bin/\`, \`r6/\`, \`red4ext/\`, \`mods/\` and \`engine/\`. Standalone \`.archive\`, \`.xl\`, \`.reds\`, \`.yaml\` and \`.yml\` files may be routed to conventional game paths.
+The archive normalizer recognizes common Cyberpunk 2077 roots, including `archive/`, `bin/`, `r6/`, `red4ext/`, `mods/` and `engine/`. Standalone `.archive`, `.xl`, `.reds`, `.yaml` and `.yml` files may be routed to conventional game paths.
 
 **Not all mod installers are supported.** Archives requiring a custom installer, installation choices, executable scripts or special manual steps may need to be installed outside this manager. Archive symlinks and hardlinks are rejected by design.
 
@@ -136,15 +136,15 @@ Read [SECURITY.md](SECURITY.md) for the extraction threat model and limits.
 
 Run the deployment and archive-security unit tests:
 
-\`\`\`bash
+```bash
 python -m unittest discover -s tests -v
-\`\`\`
+```
 
 An optional isolated Qt smoke test exercises the GUI without touching your real game or mod library:
 
-\`\`\`bash
+```bash
 QT_QPA_PLATFORM=offscreen python tests/gui_smoke.py
-\`\`\`
+```
 
 GitHub Actions runs core tests on Python 3.11 and 3.14 and a headless Qt GUI smoke test. GUI preview screenshots are available as artifacts in the workflow runs.
 
