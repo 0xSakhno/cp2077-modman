@@ -69,6 +69,15 @@ def main():
         assert window.status_filter.count() == 4
         assert window.mod_health[sample_mods[3][0]]["level"] == "repairable"
         assert window.lbl_list_count.text().startswith("4")
+        assert window.status_filter.itemText(0) == "All mods"
+        assert window.status_filter.itemText(3) == "Needs attention"
+        assert window.search_input.placeholderText() == "Search mods by name or version..."
+        assert window.table.horizontalHeaderItem(1).text() == "HEALTH"
+        # User-defined mod names are preserved; all app-owned labels are English.
+        gui_source = (Path(__file__).resolve().parents[1] / "gui.py").read_text(encoding="utf-8")
+        assert not any(0x0400 <= ord(char) <= 0x04FF for char in gui_source), (
+            "UI source contains untranslated Cyrillic strings"
+        )
         active_pills = [
             pill for pill in window.details_panel.status_pill_holder.findChildren(gui.StatusPill)
             if pill.isVisible()
@@ -95,11 +104,21 @@ def main():
         window.search_input.clear()
         window.table.selectRow(0)
         app.processEvents()
-        assert window.details_panel.lbl_name.text() != "МОД НЕ ОБРАНО"
+        assert window.details_panel.lbl_name.text() != "NO MOD SELECTED"
+        assert window.details_panel.lbl_mod_meta.text().startswith("NEXUS #")
+        window.details_panel.scroller.verticalScrollBar().setValue(100)
+        window.table.selectRow(1)
+        app.processEvents()
+        assert window.details_panel.scroller.verticalScrollBar().value() == 0
+        steam_dialog = gui.SteamConfigDialog(game)
+        assert any("STEAM LAUNCH OPTIONS" in label.text()
+                   for label in steam_dialog.findChildren(gui.QLabel))
+        assert steam_dialog.btn_copy.text() == "COPY LAUNCH OPTIONS"
+        steam_dialog.close()
         window._copy_log()
         assert QApplication.clipboard().text()
         window._clear_log()
-        assert window.lbl_log_count.text() == "0 ЗАПИСІВ"
+        assert window.lbl_log_count.text() == "0 ENTRIES"
         window.close()
         app.quit()
         print("Qt GUI smoke test passed (offscreen, isolated demo filesystem)")
