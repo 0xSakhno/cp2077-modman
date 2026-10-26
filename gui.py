@@ -2,6 +2,7 @@
 import os
 import sys
 import subprocess
+import re
 from datetime import datetime
 
 # Приглушуємо спам попереджень Qt Wayland textinput в терміналі
@@ -1198,8 +1199,8 @@ class CyberpunkModGUI(QMainWindow):
         self.mgr = ModManager()
         self.mod_health = {}
         self.setWindowTitle("CYBERPUNK 2077 // MOD DEPLOYMENT DECK")
-        self.resize(1180, 780)
-        self.setMinimumSize(920, 600)
+        self.resize(1440, 860)
+        self.setMinimumSize(1020, 680)
         self.setStyleSheet(CYBERPUNK_QSS)
         self.setAcceptDrops(True)
 
@@ -1214,17 +1215,17 @@ class CyberpunkModGUI(QMainWindow):
         header_bar = QFrame()
         header_bar.setObjectName("headerBar")
         header_layout = QHBoxLayout(header_bar)
-        header_layout.setContentsMargins(20, 12, 20, 12)
-        header_layout.setSpacing(14)
+        header_layout.setContentsMargins(26, 14, 26, 14)
+        header_layout.setSpacing(16)
 
         header_layout.addWidget(CyberHexLogo())
 
         title_col = QVBoxLayout()
         title_col.setSpacing(2)
-        title = QLabel("CYBERPUNK 2077 // MOD SYSTEM")
+        title = QLabel("CYBERPUNK 2077  /  MOD MANAGER")
         title.setObjectName("headerTitle")
         title_col.addWidget(title)
-        subtitle = QLabel("SYMLINK DEPLOYMENT ENGINE  //  LINUX NATIVE")
+        subtitle = QLabel("NIGHT CITY  •  КОНТРОЛЬ МОДИФІКАЦІЙ  •  LINUX")
         subtitle.setObjectName("headerSubtitle")
         title_col.addWidget(subtitle)
         header_layout.addLayout(title_col)
@@ -1256,17 +1257,17 @@ class CyberpunkModGUI(QMainWindow):
 
         # ─────────────────── Workspace Container ───────────────────
         workspace = QVBoxLayout()
-        workspace.setContentsMargins(20, 14, 20, 12)
-        workspace.setSpacing(12)
+        workspace.setContentsMargins(24, 17, 24, 15)
+        workspace.setSpacing(14)
 
         # ── 1. Telemetry Metric Cards Row ──
         metrics_row = QHBoxLayout()
-        metrics_row.setSpacing(12)
+        metrics_row.setSpacing(14)
 
-        self.card_total = MetricCard("УСЬОГО МОДІВ", "0", "У БАЗІ", C_CYAN)
-        self.card_active = MetricCard("АКТИВНІ СИМЛІНКИ", "0", "0 ФАЙЛІВ", C_GREEN)
-        self.card_conflicts = MetricCard("КОНФЛІКТИ ФАЙЛІВ", "0", "ЧИСТО", C_GREEN)
-        self.card_frameworks = MetricCard(" ЯДРО ФРЕЙМВОРКІВ", "0/0", "ПЕРЕВІРКА", C_YELLOW)
+        self.card_total = MetricCard("БІБЛІОТЕКА", "0", "МОДИФІКАЦІЙ", C_CYAN)
+        self.card_active = MetricCard("АКТИВНІ МОДИ", "0", "0 ПОСИЛАНЬ", C_GREEN)
+        self.card_conflicts = MetricCard("КОНФЛІКТИ", "0", "ПРОБЛЕМ НЕМАЄ", C_GREEN)
+        self.card_frameworks = MetricCard("ФРЕЙМВОРКИ", "0/0", "ПЕРЕВІРКА", C_YELLOW)
 
         metrics_row.addWidget(self.card_total, stretch=1)
         metrics_row.addWidget(self.card_active, stretch=1)
@@ -1277,11 +1278,11 @@ class CyberpunkModGUI(QMainWindow):
         # ── 2. Target Game Directory Bar ──
         path_panel = ChamferPanel(accent_color=C_CYAN, bg_color=C_BG_PANEL, cut=8)
         path_layout = QHBoxLayout(path_panel)
-        path_layout.setContentsMargins(14, 10, 14, 10)
+        path_layout.setContentsMargins(14, 11, 14, 11)
         path_layout.setSpacing(10)
 
-        path_lbl = QLabel("ДИРЕКТОРІЯ ГРИ:")
-        path_lbl.setStyleSheet(f"color: {C_CYAN}; font-size: 10px; font-weight: 800; letter-spacing: 1.5px;")
+        path_lbl = QLabel("ІНСТАЛЯЦІЯ ГРИ")
+        path_lbl.setStyleSheet(f"color: {C_CYAN}; font-size: 11px; font-weight: 800;")
         path_layout.addWidget(path_lbl)
 
         self.path_input = QLineEdit(str(self.mgr.state_mgr.game_path))
@@ -1289,13 +1290,13 @@ class CyberpunkModGUI(QMainWindow):
         self.path_input.editingFinished.connect(self.update_manual_path)
         path_layout.addWidget(self.path_input, stretch=1)
 
-        btn_browse = QPushButton("ОГЛЯД")
+        btn_browse = QPushButton("ВИБРАТИ")
         btn_browse.setIcon(VectorIcon.create("folder", C_TEXT, 14))
         btn_browse.setCursor(Qt.PointingHandCursor)
         btn_browse.clicked.connect(self.browse_game_dir)
         path_layout.addWidget(btn_browse)
 
-        btn_auto = QPushButton("АВТОПОШУК")
+        btn_auto = QPushButton("ЗНАЙТИ ГРУ")
         btn_auto.setObjectName("btnYellow")
         btn_auto.setIcon(VectorIcon.create("radar", C_YELLOW, 14))
         btn_auto.setCursor(Qt.PointingHandCursor)
@@ -1304,52 +1305,82 @@ class CyberpunkModGUI(QMainWindow):
 
         workspace.addWidget(path_panel)
 
-        # ── 3. Action Toolbar ──
-        toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        # ── 3. Library header and two balanced action rows ──
+        library_heading = QHBoxLayout()
+        library_heading.setSpacing(10)
+        library_title = QLabel("БІБЛІОТЕКА МОДИФІКАЦІЙ")
+        library_title.setObjectName("sectionTitle")
+        library_heading.addWidget(library_title)
+        library_heading.addStretch(1)
+        self.lbl_list_count = QLabel("0 МОДІВ")
+        self.lbl_list_count.setObjectName("sectionMeta")
+        library_heading.addWidget(self.lbl_list_count)
+        workspace.addLayout(library_heading)
 
-        btn_add = QPushButton("ВСТАНОВИТИ АРХІВ")
+        primary_actions = QHBoxLayout()
+        primary_actions.setSpacing(10)
+
+        btn_add = QPushButton("ДОДАТИ МОДИФІКАЦІЮ")
         btn_add.setObjectName("btnPrimary")
-        btn_add.setIcon(VectorIcon.create("plus", "#050608", 14))
+        btn_add.setIcon(VectorIcon.create("plus", "#080c13", 16))
         btn_add.setCursor(Qt.PointingHandCursor)
         btn_add.clicked.connect(self.install_archives_dialog)
-        toolbar.addWidget(btn_add)
+        primary_actions.addWidget(btn_add)
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Пошук за назвою мода...")
-        self.search_input.setMinimumWidth(240)
-        self.search_input.setMaximumWidth(300)
-        self.search_input.addAction(VectorIcon.create("search", C_TEXT_MUTED, 14), QLineEdit.LeadingPosition)
+        self.search_input.setPlaceholderText("Знайти мод за назвою або версією...")
+        self.search_input.setMinimumWidth(150)
+        self.search_input.addAction(
+            VectorIcon.create("search", C_TEXT_MUTED, 16), QLineEdit.LeadingPosition
+        )
         self.search_input.textChanged.connect(self.filter_table)
         self.search_input.setClearButtonEnabled(True)
-        toolbar.addWidget(self.search_input)
+        primary_actions.addWidget(self.search_input, stretch=1)
 
-        toolbar.addStretch()
+        self.status_filter = QComboBox()
+        self.status_filter.addItem("Усі моди", "all")
+        self.status_filter.addItem("Активні", "active")
+        self.status_filter.addItem("Вимкнені", "disabled")
+        self.status_filter.addItem("З проблемами", "issues")
+        self.status_filter.setToolTip("Фільтрувати бібліотеку за станом")
+        self.status_filter.currentIndexChanged.connect(self.filter_table)
+        primary_actions.addWidget(self.status_filter)
 
-        btn_verify = QPushButton("ПЕРЕВІРИТИ ЦІЛІСНІСТЬ")
-        btn_verify.setIcon(VectorIcon.create("shield", C_CYAN, 14))
+        workspace.addLayout(primary_actions)
+
+        secondary_actions = QHBoxLayout()
+        secondary_actions.setSpacing(9)
+        lbl_actions = QLabel("ШВИДКІ ДІЇ")
+        lbl_actions.setObjectName("sectionMeta")
+        secondary_actions.addWidget(lbl_actions)
+        secondary_actions.addStretch(1)
+
+        btn_verify = QPushButton("ПЕРЕВІРИТИ СТАН")
+        btn_verify.setIcon(VectorIcon.create("shield", C_CYAN, 15))
         btn_verify.setCursor(Qt.PointingHandCursor)
+        btn_verify.setToolTip("Перевірити цілісність усіх активних модів")
         btn_verify.clicked.connect(self.verify_all_symlinks)
-        toolbar.addWidget(btn_verify)
+        secondary_actions.addWidget(btn_verify)
 
         btn_repair = QPushButton("REPAIR МОДА")
+        btn_repair.setIcon(VectorIcon.create("radar", C_YELLOW, 15))
+        btn_repair.setToolTip("Відновити пошкоджені посилання вибраного мода")
         btn_repair.setCursor(Qt.PointingHandCursor)
         btn_repair.clicked.connect(self.repair_selected_mod)
-        toolbar.addWidget(btn_repair)
+        secondary_actions.addWidget(btn_repair)
 
         btn_enable_all = QPushButton("УВІМКНУТИ ВСІ")
         btn_enable_all.setIcon(VectorIcon.create("check_all", C_GREEN, 14))
         btn_enable_all.setCursor(Qt.PointingHandCursor)
         btn_enable_all.clicked.connect(self.enable_all_mods)
-        toolbar.addWidget(btn_enable_all)
+        secondary_actions.addWidget(btn_enable_all)
 
         btn_disable_all = QPushButton("ВИМКНУТИ ВСІ")
         btn_disable_all.setIcon(VectorIcon.create("close_all", C_RED, 14))
         btn_disable_all.setCursor(Qt.PointingHandCursor)
         btn_disable_all.clicked.connect(self.disable_all_mods)
-        toolbar.addWidget(btn_disable_all)
-
-        workspace.addLayout(toolbar)
+        secondary_actions.addWidget(btn_disable_all)
+        workspace.addLayout(secondary_actions)
 
         # ── 4. Main Splitter: Mod Table + Inspector ──
         splitter = QSplitter(Qt.Horizontal)
