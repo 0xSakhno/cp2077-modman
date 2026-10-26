@@ -226,6 +226,7 @@ class ModManager:
             steps.append((rel, status, source, target))
 
         completed = []
+        created_dirs = []
         try:
             for rel, status, source, ignored_target in steps:
                 target = self._target(game_dir, rel)
@@ -238,8 +239,17 @@ class ModManager:
                 else:
                     if target.exists() or target.is_symlink():
                         raise FileExistsError(f"Target appeared during repair: {rel}")
-                    if not target.parent.is_dir():
-                        raise FileNotFoundError(f"Parent directory missing: {target.parent}")
+                    missing_parents = []
+                    parent = target.parent
+                    while not parent.exists() and not parent.is_symlink():
+                        missing_parents.append(parent)
+                        parent = parent.parent
+                    for directory in reversed(missing_parents):
+                        directory.mkdir()
+                        created_dirs.append(directory)
+                    target = self._target(game_dir, rel)
+                    if target.exists() or target.is_symlink():
+                        raise FileExistsError(f"Target appeared during repair: {rel}")
                     temporary = None
                 try:
                     os.symlink(source, target)
@@ -254,6 +264,11 @@ class ModManager:
                     target.unlink()
                 if temporary is not None and temporary.exists():
                     temporary.rename(target)
+            for directory in reversed(created_dirs):
+                try:
+                    directory.rmdir()
+                except OSError:
+                    pass
             raise
 
         for target, source, temporary in completed:
