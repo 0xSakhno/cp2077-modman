@@ -1382,21 +1382,30 @@ class CyberpunkModGUI(QMainWindow):
         secondary_actions.addWidget(btn_disable_all)
         workspace.addLayout(secondary_actions)
 
-        # ── 4. Main Splitter: Mod Table + Inspector ──
-        splitter = QSplitter(Qt.Horizontal)
-        splitter.setHandleWidth(4)
+        # ── 4. Split workspace: library + contextual inspector above a resizable log ──
+        self.vertical_splitter = QSplitter(Qt.Vertical)
+        self.vertical_splitter.setHandleWidth(8)
+        self.vertical_splitter.setChildrenCollapsible(False)
+
+        self.library_splitter = QSplitter(Qt.Horizontal)
+        self.library_splitter.setHandleWidth(8)
+        self.library_splitter.setChildrenCollapsible(False)
+        self.library_splitter.splitterMoved.connect(self._adapt_columns)
 
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels([
-            "АКТИВАЦІЯ", "СТАТУС", "НАЗВА МОДИФІКАЦІЇ", "ЗАЛЕЖНОСТІ", "ЛІНКІВ"
+            "СТАН", "ЗДОРОВ’Я", "МОДИФІКАЦІЯ", "ЗАЛЕЖНОСТІ", "ФАЙЛІВ"
         ])
         hdr = self.table.horizontalHeader()
         hdr.setSectionResizeMode(0, QHeaderView.Fixed)
-        self.table.setColumnWidth(0, 92)
-        hdr.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.table.setColumnWidth(0, 76)
+        hdr.setSectionResizeMode(1, QHeaderView.Fixed)
+        self.table.setColumnWidth(1, 126)
         hdr.setSectionResizeMode(2, QHeaderView.Stretch)
-        hdr.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        hdr.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(3, QHeaderView.Fixed)
+        self.table.setColumnWidth(3, 260)
+        hdr.setSectionResizeMode(4, QHeaderView.Fixed)
+        self.table.setColumnWidth(4, 75)
 
         self.table.verticalHeader().setVisible(False)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -1404,35 +1413,64 @@ class CyberpunkModGUI(QMainWindow):
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setAlternatingRowColors(True)
         self.table.setShowGrid(False)
-        self.table.verticalHeader().setDefaultSectionSize(40)
+        self.table.verticalHeader().setDefaultSectionSize(48)
         self.table.cellDoubleClicked.connect(lambda r, c: self.toggle_selected_mod())
         self.table.currentCellChanged.connect(self._on_selection_changed)
-
-        splitter.addWidget(self.table)
+        self.table.setToolTip("Подвійний клік — змінити стан вибраного мода")
+        self.library_splitter.addWidget(self.table)
 
         self.details_panel = ModDetailsPanel()
         self.details_panel.btn_toggle.clicked.connect(self.toggle_selected_mod)
         self.details_panel.btn_delete.clicked.connect(self.delete_selected_mod)
-        splitter.addWidget(self.details_panel)
+        self.details_panel.btn_repair.clicked.connect(self.repair_selected_mod)
+        self.library_splitter.addWidget(self.details_panel)
+        self.library_splitter.setSizes([990, 390])
+        self.library_splitter.setStretchFactor(0, 1)
+        self.library_splitter.setStretchFactor(1, 0)
+        self.vertical_splitter.addWidget(self.library_splitter)
 
-        splitter.setSizes([780, 320])
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 0)
-        workspace.addWidget(splitter, stretch=1)
-
-        # ── 5. System Telemetry Log ──
+        # Resizable log area, instead of a cramped, fixed-height readout.
+        log_frame = QFrame()
+        log_layout = QVBoxLayout(log_frame)
+        log_layout.setContentsMargins(0, 0, 0, 0)
+        log_layout.setSpacing(8)
         log_hdr_row = QHBoxLayout()
-        log_title = QLabel("СИСТЕМНИЙ ЖУРНАЛ ОПЕРАЦІЙ")
-        log_title.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 10px; font-weight: 800; letter-spacing: 1.5px;")
+        log_hdr_row.setSpacing(10)
+
+        log_title = QLabel("ЖУРНАЛ ПОДІЙ")
+        log_title.setObjectName("sectionTitle")
         log_hdr_row.addWidget(log_title)
-        log_hdr_row.addStretch()
-        workspace.addLayout(log_hdr_row)
+
+        self.lbl_log_count = QLabel("0 ЗАПИСІВ")
+        self.lbl_log_count.setObjectName("sectionMeta")
+        log_hdr_row.addWidget(self.lbl_log_count)
+        log_hdr_row.addStretch(1)
+
+        btn_copy_log = QPushButton("КОПІЮВАТИ")
+        btn_copy_log.setCursor(Qt.PointingHandCursor)
+        btn_copy_log.setToolTip("Скопіювати весь журнал у буфер обміну")
+        btn_copy_log.clicked.connect(self._copy_log)
+        log_hdr_row.addWidget(btn_copy_log)
+
+        btn_clear_log = QPushButton("ОЧИСТИТИ")
+        btn_clear_log.setCursor(Qt.PointingHandCursor)
+        btn_clear_log.clicked.connect(self._clear_log)
+        log_hdr_row.addWidget(btn_clear_log)
+        log_layout.addLayout(log_hdr_row)
 
         self.log_box = QTextEdit()
         self.log_box.setObjectName("logBox")
         self.log_box.setReadOnly(True)
-        self.log_box.setFixedHeight(105)
-        workspace.addWidget(self.log_box)
+        self.log_box.setMinimumHeight(70)
+        self.log_box.setLineWrapMode(QTextEdit.WidgetWidth)
+        self._log_lines = 0
+        log_layout.addWidget(self.log_box, 1)
+
+        self.vertical_splitter.addWidget(log_frame)
+        self.vertical_splitter.setSizes([470, 175])
+        self.vertical_splitter.setStretchFactor(0, 1)
+        self.vertical_splitter.setStretchFactor(1, 0)
+        workspace.addWidget(self.vertical_splitter, stretch=1)
 
         main_layout.addLayout(workspace, stretch=1)
 
