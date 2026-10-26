@@ -1720,6 +1720,7 @@ class CyberpunkModGUI(QMainWindow):
                 "modified_file": "змінених файлів",
                 "foreign_link": "чужих посилань",
                 "unexpected_target": "невідомих об’єктів",
+                "backup_conflict": "конфліктів резервних копій",
             }
             parts = [f"{count} {descriptions.get(status, status)}"
                      for status, count in counts.items()]
