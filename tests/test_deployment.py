@@ -121,6 +121,26 @@ class DeploymentTests(unittest.TestCase):
         self.assertTrue(target.is_symlink())
         self.assertTrue(other.is_symlink())
 
+    def test_repair_recreates_missing_parent_directory(self):
+        src = self.mod("alpha")
+        self.manager.enable_mod("alpha")
+        target = self.game / src.relative_to(self.mods / "alpha")
+        target.unlink()
+        target.parent.rmdir()
+        self.assertEqual(len(self.manager.repair_identical_copies("alpha")), 1)
+        self.assertTrue(target.is_symlink())
+
+    def test_repair_removes_created_directory_on_failure(self):
+        src = self.mod("alpha")
+        self.manager.enable_mod("alpha")
+        target = self.game / src.relative_to(self.mods / "alpha")
+        target.unlink()
+        target.parent.rmdir()
+        with patch.object(linker.os, "symlink", side_effect=OSError("failed")):
+            with self.assertRaises(OSError):
+                self.manager.repair_identical_copies("alpha")
+        self.assertFalse(target.parent.exists())
+
     def test_repair_blocks_missing_source(self):
         src = self.mod("alpha")
         extra = self.mod_extra("alpha", "archive/pc/mod/second.archive")
