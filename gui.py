@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QPushButton, QLineEdit, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QFileDialog, QTextEdit, QAbstractItemView, QFrame,
     QSplitter, QMessageBox, QGraphicsDropShadowEffect, QSizePolicy,
-    QStatusBar, QDialog
+    QStatusBar, QDialog, QComboBox, QProgressBar, QScrollArea
 )
 from PySide6.QtCore import (
     Qt, QSize, Signal, QPointF, QRectF
@@ -876,111 +876,185 @@ QScrollArea {{
 # ─────────────────────────── Inspector Panel ─────────────────────────
 
 class ModDetailsPanel(ChamferPanel):
-    """Right-hand inspector panel displaying structured mod telemetry."""
+    """Scrollable, health-focused inspector with pinned contextual actions."""
+
     def __init__(self, parent=None):
         super().__init__(accent_color=C_YELLOW, bg_color=C_BG_PANEL, cut=12, parent=parent)
-        self.setMinimumWidth(275)
-        self.setMaximumWidth(360)
+        self.setMinimumWidth(300)
+        self.setMaximumWidth(440)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        shell = QVBoxLayout(self)
+        shell.setContentsMargins(1, 8, 1, 1)
+        shell.setSpacing(0)
 
-        header = QLabel("ІНСПЕКТОР МОДИФІКАЦІЇ")
+        scroller = QScrollArea()
+        scroller.setWidgetResizable(True)
+        scroller.setFrameShape(QFrame.NoFrame)
+        scroller.viewport().setAutoFillBackground(False)
+        scroller.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        content = QWidget()
+        content.setAutoFillBackground(False)
+        scroller.setWidget(content)
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 15, 20, 16)
+        layout.setSpacing(11)
+
+        header = QLabel("01   /   ІНСПЕКТОР МОДА")
         header.setStyleSheet(
-            f"color: {C_YELLOW}; font-size: 11px; font-weight: 800; letter-spacing: 1.8px;"
+            f"color: {C_YELLOW}; font-size: 11px; font-weight: 800; letter-spacing: 0.8px;"
         )
         layout.addWidget(header)
 
-        # Mod title card
-        self.lbl_name = QLabel("НЕ ОБРАНО")
+        self.lbl_name = QLabel("МОД НЕ ОБРАНО")
+        self.lbl_name.setTextFormat(Qt.PlainText)
         self.lbl_name.setWordWrap(True)
         self.lbl_name.setStyleSheet(
-            f"color: {C_TEXT}; font-size: 14px; font-weight: 800; padding: 4px 0;"
+            f"color: {C_TEXT}; font-size: 17px; font-weight: 800;"
         )
         layout.addWidget(self.lbl_name)
 
-        self.status_container = QHBoxLayout()
-        self.status_container.setContentsMargins(0, 0, 0, 4)
         self.status_pill_holder = QWidget()
         self.status_pill_layout = QHBoxLayout(self.status_pill_holder)
-        self.status_pill_layout.setContentsMargins(0, 0, 0, 0)
-        self.status_container.addWidget(self.status_pill_holder)
-        self.status_container.addStretch()
-        layout.addLayout(self.status_container)
+        self.status_pill_layout.setContentsMargins(0, 1, 0, 2)
+        self.status_pill_layout.setAlignment(Qt.AlignLeft)
+        layout.addWidget(self.status_pill_holder)
 
-        # Telemetry grid box
-        grid_frame = QFrame()
-        grid_frame.setStyleSheet(
-            f"background-color: {C_BG_DEEP}; border: 1px solid {C_BORDER}; border-radius: 3px;"
+        divider = QFrame()
+        divider.setFrameShape(QFrame.HLine)
+        divider.setStyleSheet(f"color: {C_BORDER_LIGHT};")
+        layout.addWidget(divider)
+
+        heading = QLabel("СТАН РОЗГОРТАННЯ")
+        heading.setStyleSheet(
+            f"color: {C_TEXT_MUTED}; font-size: 11px; font-weight: 800; letter-spacing: 0.7px;"
         )
-        grid_layout = QHBoxLayout(grid_frame)
-        grid_layout.setContentsMargins(12, 8, 12, 8)
+        layout.addWidget(heading)
 
-        col_files = QVBoxLayout()
-        lbl_f_key = QLabel("СИМЛІНКІВ")
-        lbl_f_key.setStyleSheet(f"color: {C_TEXT_DIM}; font-size: 9px; font-weight: 700; letter-spacing: 1px;")
+        self.lbl_health = QLabel("Оберіть мод у бібліотеці")
+        self.lbl_health.setWordWrap(True)
+        self.lbl_health.setStyleSheet(
+            f"color: {C_TEXT_MUTED}; font-size: 13px; font-weight: 700;"
+        )
+        layout.addWidget(self.lbl_health)
+
+        self.health_bar = QProgressBar()
+        self.health_bar.setRange(0, 100)
+        self.health_bar.setTextVisible(False)
+        self.health_bar.setFixedHeight(7)
+        layout.addWidget(self.health_bar)
+
+        self.lbl_health_detail = QLabel("—")
+        self.lbl_health_detail.setWordWrap(True)
+        self.lbl_health_detail.setStyleSheet(
+            f"color: {C_TEXT_DIM}; font-size: 11px;"
+        )
+        layout.addWidget(self.lbl_health_detail)
+
+        metric_box = QFrame()
+        metric_box.setObjectName("inspectorMetricBox")
+        metric_box.setStyleSheet(
+            f"QFrame#inspectorMetricBox {{background: {C_BG_DEEP};"
+            f" border: 1px solid {C_BORDER}; border-radius: 6px;}}"
+            f"QFrame#inspectorMetricBox QLabel {{border: none; background: transparent;}}"
+        )
+        metric_layout = QHBoxLayout(metric_box)
+        metric_layout.setContentsMargins(14, 14, 14, 14)
+        metric_layout.setSpacing(14)
+        col_a = QVBoxLayout()
+        col_a.setSpacing(3)
+        label_files = QLabel("ПОСИЛАНЬ")
+        label_files.setStyleSheet(f"color: {C_TEXT_DIM}; font-size: 10px; font-weight: 700;")
         self.lbl_files = QLabel("—")
-        self.lbl_files.setStyleSheet(f"color: {C_CYAN}; font-size: 14px; font-weight: 800;")
-        col_files.addWidget(lbl_f_key)
-        col_files.addWidget(self.lbl_files)
-        grid_layout.addLayout(col_files)
-
-        col_size = QVBoxLayout()
-        lbl_s_key = QLabel("РОЗМІР НА ДИСКУ")
-        lbl_s_key.setStyleSheet(f"color: {C_TEXT_DIM}; font-size: 9px; font-weight: 700; letter-spacing: 1px;")
+        self.lbl_files.setStyleSheet(
+            f"color: {C_CYAN}; font-size: 24px; font-weight: 800;"
+        )
+        col_a.addWidget(label_files)
+        col_a.addWidget(self.lbl_files)
+        metric_layout.addLayout(col_a, 1)
+        col_b = QVBoxLayout()
+        col_b.setSpacing(3)
+        label_size = QLabel("РОЗМІР")
+        label_size.setStyleSheet(f"color: {C_TEXT_DIM}; font-size: 10px; font-weight: 700;")
         self.lbl_size = QLabel("—")
-        self.lbl_size.setStyleSheet(f"color: {C_TEXT}; font-size: 14px; font-weight: 800;")
-        col_size.addWidget(lbl_s_key)
-        col_size.addWidget(self.lbl_size)
-        grid_layout.addLayout(col_size)
+        self.lbl_size.setStyleSheet(f"color: {C_TEXT}; font-size: 20px; font-weight: 800;")
+        col_b.addWidget(label_size)
+        col_b.addWidget(self.lbl_size)
+        metric_layout.addLayout(col_b, 1)
+        layout.addWidget(metric_box)
 
-        layout.addWidget(grid_frame)
+        lbl_types_hdr = QLabel("СКЛАД ПАКЕТА")
+        lbl_types_hdr.setStyleSheet(
+            f"color: {C_TEXT_MUTED}; font-size: 11px; font-weight: 800; letter-spacing: 0.7px;"
+        )
+        layout.addWidget(lbl_types_hdr)
+        self.lbl_types = QLabel("—")
+        self.lbl_types.setWordWrap(True)
+        self.lbl_types.setTextFormat(Qt.PlainText)
+        self.lbl_types.setStyleSheet(
+            f"color: {C_TEXT}; font-family: 'DejaVu Sans Mono'; font-size: 12px;"
+        )
+        layout.addWidget(self.lbl_types)
 
-        # Dependencies section
         lbl_deps_hdr = QLabel("НЕОБХІДНІ ФРЕЙМВОРКИ")
         lbl_deps_hdr.setStyleSheet(
-            f"color: {C_TEXT_MUTED}; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; margin-top: 4px;"
+            f"color: {C_TEXT_MUTED}; font-size: 11px; font-weight: 800; letter-spacing: 0.7px;"
         )
         layout.addWidget(lbl_deps_hdr)
-
         self.lbl_deps = QLabel("—")
         self.lbl_deps.setWordWrap(True)
-        self.lbl_deps.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 11px;")
+        self.lbl_deps.setStyleSheet(
+            f"color: {C_TEXT_MUTED}; font-size: 12px;"
+        )
         layout.addWidget(self.lbl_deps)
 
-        # Conflicts section
-        self.lbl_conflicts_hdr = QLabel("ВИЯВЛЕНІ КОНФЛІКТИ ПЕРЕЗАПИСУ")
+        self.lbl_conflicts_hdr = QLabel("ПОТЕНЦІЙНІ КОНФЛІКТИ")
         self.lbl_conflicts_hdr.setStyleSheet(
-            f"color: {C_ORANGE}; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; margin-top: 4px;"
+            f"color: {C_ORANGE}; font-size: 11px; font-weight: 800;"
         )
-        self.lbl_conflicts_hdr.setVisible(False)
+        self.lbl_conflicts_hdr.hide()
         layout.addWidget(self.lbl_conflicts_hdr)
-
         self.lbl_conflicts = QLabel("")
         self.lbl_conflicts.setWordWrap(True)
         self.lbl_conflicts.setStyleSheet(
-            f"background-color: rgba(255, 149, 0, 0.08); border-left: 2px solid {C_ORANGE};"
-            f" color: {C_ORANGE}; font-size: 11px; padding: 6px 8px;"
+            f"background-color: #33251c; border-left: 3px solid {C_ORANGE};"
+            f" color: {C_ORANGE}; font-size: 12px; padding: 9px;"
         )
-        self.lbl_conflicts.setVisible(False)
+        self.lbl_conflicts.hide()
         layout.addWidget(self.lbl_conflicts)
+        layout.addStretch(1)
 
-        layout.addStretch()
+        shell.addWidget(scroller, 1)
 
-        # Action buttons
+        footer = QFrame()
+        footer.setObjectName("inspectorFooter")
+        footer.setStyleSheet(
+            f"QFrame#inspectorFooter {{background-color: {C_BG_PANEL};"
+            f" border-top: 1px solid {C_BORDER_LIGHT};}}"
+        )
+        actions = QVBoxLayout(footer)
+        actions.setContentsMargins(17, 12, 17, 17)
+        actions.setSpacing(8)
+
+        self.btn_repair = QPushButton("ВІДНОВИТИ ПОСИЛАННЯ")
+        self.btn_repair.setObjectName("btnYellow")
+        self.btn_repair.setIcon(VectorIcon.create("shield", C_YELLOW, 15))
+        self.btn_repair.setCursor(Qt.PointingHandCursor)
+        self.btn_repair.setToolTip("Тільки для безпечно відновлюваних файлів")
+        self.btn_repair.hide()
+        actions.addWidget(self.btn_repair)
+
         self.btn_toggle = QPushButton("ПЕРЕМКНУТИ СТАН")
-        self.btn_toggle.setObjectName("btnYellow")
-        self.btn_toggle.setIcon(VectorIcon.create("power", C_YELLOW, 15))
+        self.btn_toggle.setObjectName("btnPrimary")
+        self.btn_toggle.setIcon(VectorIcon.create("power", "#080c13", 15))
         self.btn_toggle.setCursor(Qt.PointingHandCursor)
-        layout.addWidget(self.btn_toggle)
+        actions.addWidget(self.btn_toggle)
 
         self.btn_delete = QPushButton("ВИДАЛИТИ МОДИФІКАЦІЮ")
         self.btn_delete.setObjectName("btnDanger")
         self.btn_delete.setIcon(VectorIcon.create("trash", C_RED, 15))
         self.btn_delete.setCursor(Qt.PointingHandCursor)
-        layout.addWidget(self.btn_delete)
-
+        actions.addWidget(self.btn_delete)
+        shell.addWidget(footer)
         self.clear_details()
 
     def _set_pill(self, text: str, color: str, filled: bool):
@@ -992,90 +1066,128 @@ class ModDetailsPanel(ChamferPanel):
 
     def update_details(self, mod_name: str, mod_data: dict, game_path=None, mods_state=None, health=None):
         self.lbl_name.setText(mod_name)
-        enabled = mod_data.get("enabled", False)
-
-        health_level = (health or {}).get("level")
-        if enabled and health_level == "repairable":
-            self._set_pill("REPAIR AVAILABLE", C_YELLOW, True)
-            self.set_accent(C_YELLOW)
-        elif enabled and health_level in ("blocked", "error"):
-            self._set_pill("MANUAL REVIEW", C_RED, True)
-            self.set_accent(C_RED)
-        elif enabled:
-            self._set_pill("ACTIVE DEPLOYMENT", C_GREEN, True)
-            self.set_accent(C_GREEN)
-        else:
-            self._set_pill("STANDBY // OFF", C_TEXT_MUTED, False)
-            self.set_accent(C_YELLOW)
-
+        enabled = bool(mod_data.get("enabled", False))
+        health = health or {}
+        health_level = health.get("level", "disabled" if not enabled else "healthy")
+        issues = health.get("issues", [])
         links = mod_data.get("links", [])
+
+        if health_level == "repairable":
+            pill_text, color, filled = "REPAIR AVAILABLE", C_YELLOW, True
+            health_text = "Потрібне відновлення посилань"
+            detail = f"{len(issues)} файлів можна безпечно відновити вручну"
+        elif health_level in ("blocked", "error"):
+            pill_text, color, filled = "MANUAL REVIEW", C_RED, True
+            health_text = "Виявлено проблему з файлами"
+            detail = (health.get("error") or
+                      f"{len(issues)} файлів потребують ручної перевірки")
+        elif enabled:
+            pill_text, color, filled = "DEPLOYMENT HEALTHY", C_GREEN, True
+            health_text = "Усі посилання на своїх місцях"
+            detail = f"Перевірено {len(links)} активних посилань"
+        else:
+            pill_text, color, filled = "STANDBY // OFF", C_TEXT_DIM, False
+            health_text = "Модифікацію вимкнено"
+            detail = "Файли залишаються у локальному сховищі"
+
+        self._set_pill(pill_text, color, filled)
+        self.set_accent(color)
+        self.lbl_health.setText(health_text)
+        self.lbl_health.setStyleSheet(
+            f"color: {color}; font-size: 13px; font-weight: 700;"
+        )
+        self.lbl_health_detail.setText(detail)
+        self.health_bar.setValue(100 if enabled and health_level == "healthy" else 0)
+        self.health_bar.setStyleSheet(
+            f"QProgressBar {{background: {C_BG_DEEP}; border: none; border-radius: 3px;}}"
+            f"QProgressBar::chunk {{background: {color}; border-radius: 3px;}}"
+        )
+        self.btn_repair.setVisible(health_level == "repairable")
+        self.btn_toggle.setText("ВИМКНУТИ МОД" if enabled else "УВІМКНУТИ МОД")
+        self.btn_toggle.setEnabled(True)
+        self.btn_delete.setEnabled(True)
         self.lbl_files.setText(str(len(links)))
 
         mod_path = MODS_DIR / mod_name
-        if mod_path.exists():
-            total_size = sum(f.stat().st_size for f in mod_path.rglob("*") if f.is_file())
-            self.lbl_size.setText(self._format_size(total_size))
+        if mod_path.is_dir():
+            try:
+                total_size = sum(f.stat().st_size for f in mod_path.rglob("*") if f.is_file())
+            except OSError:
+                self.lbl_size.setText("—")
+            else:
+                self.lbl_size.setText(self._format_size(total_size))
         else:
             self.lbl_size.setText("—")
 
         if game_path:
             analysis = analyse_mod(mod_name, game_path)
+            if analysis.file_types:
+                types = sorted(analysis.file_types.items(), key=lambda item: (-item[1], item[0]))
+                self.lbl_types.setText("   ·   ".join(
+                    f"{extension} ×{count}" for extension, count in types[:6]
+                ))
+                self.lbl_types.setToolTip("\n".join(
+                    f"{extension}: {count}" for extension, count in types
+                ))
+            else:
+                self.lbl_types.setText("Немає файлів")
+                self.lbl_types.setToolTip("")
+
             if analysis.required_frameworks:
-                deps_parts = []
+                parts = []
                 for fid in analysis.required_frameworks:
                     fw = get_framework_info(fid)
                     name = fw.name if fw else fid
                     if fid in analysis.missing_frameworks:
-                        deps_parts.append(
-                            f'<div style="color:{C_RED}; font-weight:700;">[MISSING] {name}</div>'
-                        )
+                        parts.append(f'<div style="color:{C_RED}; font-weight:700;">●  {name}  — відсутній</div>')
                     else:
-                        deps_parts.append(
-                            f'<div style="color:{C_GREEN}; font-weight:700;">[OK] {name}</div>'
-                        )
-                self.lbl_deps.setText("".join(deps_parts))
+                        parts.append(f'<div style="color:{C_GREEN}; font-weight:700;">●  {name}  — готовий</div>')
+                self.lbl_deps.setText("".join(parts))
             else:
-                self.lbl_deps.setText(f'<span style="color:{C_TEXT_DIM};">Автономний мод (без залежностей)</span>')
+                self.lbl_deps.setText(
+                    f'<span style="color:{C_TEXT_DIM};">Не потребує окремих фреймворків</span>'
+                )
         else:
+            self.lbl_types.setText("—")
             self.lbl_deps.setText("—")
 
-        if mods_state:
-            conflicts = get_mod_conflicts_for(mod_name, mods_state)
-            if conflicts:
-                self.lbl_conflicts_hdr.setVisible(True)
-                self.lbl_conflicts.setVisible(True)
-                other_mods = set()
-                for c in conflicts:
-                    other = c.mod_b if c.mod_a == mod_name else c.mod_a
-                    other_mods.add(other)
-                conflict_lines = []
-                for other in sorted(other_mods):
-                    n_files = sum(1 for c in conflicts if c.mod_a == other or c.mod_b == other)
-                    conflict_lines.append(f"{other} ({n_files} спільних файлів)")
-                self.lbl_conflicts.setText("\n".join(conflict_lines))
-            else:
-                self.lbl_conflicts_hdr.setVisible(False)
-                self.lbl_conflicts.setVisible(False)
+        conflicts = get_mod_conflicts_for(mod_name, mods_state or {})
+        self.lbl_conflicts_hdr.setVisible(bool(conflicts))
+        self.lbl_conflicts.setVisible(bool(conflicts))
+        if conflicts:
+            others = sorted({
+                c.mod_b if c.mod_a == mod_name else c.mod_a for c in conflicts
+            })
+            self.lbl_conflicts.setText("\n".join(others))
 
     def clear_details(self):
         self.lbl_name.setText("МОД НЕ ОБРАНО")
         self._set_pill("ОЧІКУВАННЯ ВИБОРУ", C_TEXT_DIM, False)
         self.set_accent(C_YELLOW)
-        self.lbl_files.setText("0")
-        self.lbl_size.setText("0 B")
-        self.lbl_deps.setText(f'<span style="color:{C_TEXT_DIM};">Оберіть рядок у таблиці для аналізу</span>')
-        self.lbl_conflicts_hdr.setVisible(False)
-        self.lbl_conflicts.setVisible(False)
+        self.lbl_health.setText("Оберіть мод у бібліотеці")
+        self.lbl_health.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 13px;")
+        self.lbl_health_detail.setText("Деталі та стан розгортання з’являться тут")
+        self.health_bar.setValue(0)
+        self.lbl_files.setText("—")
+        self.lbl_size.setText("—")
+        self.lbl_types.setText("—")
+        self.lbl_deps.setText("—")
+        self.lbl_conflicts_hdr.hide()
+        self.lbl_conflicts.hide()
+        self.btn_repair.hide()
+        self.btn_toggle.setText("ПЕРЕМКНУТИ СТАН")
+        self.btn_toggle.setEnabled(False)
+        self.btn_delete.setEnabled(False)
 
     @staticmethod
     def _format_size(size_bytes: int) -> str:
         if size_bytes < 1024:
             return f"{size_bytes} B"
-        elif size_bytes < 1024 ** 2:
+        if size_bytes < 1024**2:
             return f"{size_bytes / 1024:.1f} KB"
-        elif size_bytes < 1024 ** 3:
-            return f"{size_bytes / (1024 ** 2):.1f} MB"
-        return f"{size_bytes / (1024 ** 3):.2f} GB"
+        if size_bytes < 1024**3:
+            return f"{size_bytes / (1024**2):.1f} MB"
+        return f"{size_bytes / (1024**3):.2f} GB"
 
 
 # ─────────────────────────── Main Window ─────────────────────────────
