@@ -7,34 +7,34 @@ def main():
     parser = argparse.ArgumentParser(description="Cyberpunk 2077 Linux Mod Manager")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    # Команда встановлення шляху до гри
-    p_path = sub.add_parser("set-path", help="Вказати шлях до папки Cyberpunk 2077")
-    p_path.add_argument("path", help="Повний шлях до кореневої папки гри")
+    # Configure the game directory
+    p_path = sub.add_parser("set-path", help="Set the Cyberpunk 2077 installation directory")
+    p_path.add_argument("path", help="Absolute path to the game's root directory")
 
-    # Встановлення архіву
-    p_add = sub.add_parser("add", help="Встановити мод з архіву (.zip, .7z, .rar)")
-    p_add.add_argument("archive", help="Шлях до архіву")
-    p_add.add_argument("--name", help="Власна назва мода (опціонально)", default=None)
+    # Install mod archives
+    p_add = sub.add_parser("add", help="Install a mod from an archive (.zip, .7z, .rar, .tar.gz)")
+    p_add.add_argument("archive", help="Path to the archive")
+    p_add.add_argument("--name", help="Optional custom mod name", default=None)
 
-    # Увімкнення / Вимкнення / Видалення
-    p_en = sub.add_parser("enable", help="Увімкнути мод")
-    p_en.add_argument("name", help="Назва мода")
+    # Enable, disable and remove mods
+    p_en = sub.add_parser("enable", help="Enable a mod")
+    p_en.add_argument("name", help="Exact mod name")
 
-    p_dis = sub.add_parser("disable", help="Вимкнути мод")
-    p_dis.add_argument("name", help="Назва мода")
+    p_dis = sub.add_parser("disable", help="Disable a mod")
+    p_dis.add_argument("name", help="Exact mod name")
 
-    p_rm = sub.add_parser("remove", help="Повністю видалити мод")
-    p_rm.add_argument("name", help="Назва мода")
+    p_rm = sub.add_parser("remove", help="Permanently remove a mod")
+    p_rm.add_argument("name", help="Exact mod name")
 
-    # Список модів
-    sub.add_parser("list", help="Показати список встановлених модів")
+    # List installed mods
+    sub.add_parser("list", help="List installed mods")
 
     args = parser.parse_args()
     mgr = ModManager()
 
     if args.cmd == "set-path":
         mgr.state_mgr.game_path = args.path
-        print(f"[+] Шлях до гри збережено: {mgr.state_mgr.game_path}")
+        print(f"[+] Game directory saved: {mgr.state_mgr.game_path}")
 
     elif args.cmd == "add":
         mgr.install_from_archive(args.archive, args.name)
@@ -50,13 +50,13 @@ def main():
 
     elif args.cmd == "list":
         mods = mgr.state_mgr.state["mods"]
-        print(f"Папка гри: {mgr.state_mgr.game_path}\n")
+        print(f"Game directory: {mgr.state_mgr.game_path}\n")
         if not mods:
-            print("Модів ще не встановлено.")
+            print("No mods installed yet.")
             return
         for name, data in mods.items():
             status = "\033[92m[ON]\033[0m " if data["enabled"] else "\033[91m[OFF]\033[0m"
-            print(f"{status} {name} ({len(data['links'])} активних файлів)")
+            print(f"{status} {name} ({len(data['links'])} active files)")
 
 
 if __name__ == "__main__":

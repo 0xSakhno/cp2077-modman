@@ -1,0 +1,59 @@
+name: Deployment and UI checks
+
+on:
+  push:
+    branches:
+      - main
+      - fix/safe-mod-deployment
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.14"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Check Python syntax
+        run: python -m compileall -q core main.py gui.py tests
+      - name: Check CLI help output
+        run: python main.py --help
+      - name: Run filesystem deployment unit tests
+        run: python -m unittest discover -s tests -v
+
+  gui-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Install headless Qt runtime libraries
+        run: sudo apt-get update -qq && sudo apt-get install -y libegl1 libopengl0 libgl1 libxkbcommon-x11-0 libxcb-cursor0
+      - name: Install Qt bindings
+        run: python -m pip install PySide6_Essentials
+      - name: Launch redesigned Qt GUI in offscreen mode
+        env:
+          QT_QPA_PLATFORM: offscreen
+          GUI_PREVIEW_PATH: gui-preview.png
+        run: python tests/gui_smoke.py
+      - name: Upload UI screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-preview
+          path: gui-preview.png
+          if-no-files-found: ignore

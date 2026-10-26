@@ -81,12 +81,12 @@ def configure_proton_overrides(prefix_path: Path, dlls: list[str] = ("version", 
     """
     user_reg = prefix_path / "user.reg"
     if not user_reg.exists():
-        return False, f"Файл {user_reg} не знайдено."
+        return False, f"File not found: {user_reg}."
 
     try:
         text = user_reg.read_text(encoding="utf-8", errors="ignore")
     except Exception as e:
-        return False, f"Не вдалося прочитати user.reg: {e}"
+        return False, f"Could not read user.reg: {e}"
 
     # Створюємо резервну копію, якщо ще не створена
     bak = user_reg.with_suffix(".reg.bak")
@@ -94,7 +94,7 @@ def configure_proton_overrides(prefix_path: Path, dlls: list[str] = ("version", 
         try:
             shutil.copy2(user_reg, bak)
         except Exception as e:
-            return False, f"Не вдалося створити резервну копію user.reg: {e}"
+            return False, f"Could not back up user.reg: {e}"
 
     # Знаходимо або створюємо секцію [Software\\Wine\\DllOverrides]
     header_match = re.search(r"(\[Software\\\\Wine\\\\DllOverrides\][^\n]*\n(?:#[^\n]*\n)?)", text)
@@ -106,7 +106,7 @@ def configure_proton_overrides(prefix_path: Path, dlls: list[str] = ("version", 
             lines_to_add.append(f'"{dll}"="native,builtin"\n')
 
     if not lines_to_add:
-        return True, "Усі необхідні DLL Overrides вже активні."
+        return True, "All required DLL overrides are already enabled."
 
     insert_content = "".join(lines_to_add)
 
@@ -120,9 +120,9 @@ def configure_proton_overrides(prefix_path: Path, dlls: list[str] = ("version", 
 
     try:
         user_reg.write_text(new_text, encoding="utf-8")
-        return True, f"Успішно додано DLL Overrides ({', '.join(dlls)}) до Proton prefix."
+        return True, f"Successfully added DLL overrides ({', '.join(dlls)}) to the Proton prefix."
     except Exception as e:
-        return False, f"Помилка запису в user.reg: {e}"
+        return False, f"Could not write to user.reg: {e}"
 
 
 def launch_game_steam(game_path: Path | None = None) -> tuple[bool, str]:
@@ -140,13 +140,13 @@ def launch_game_steam(game_path: Path | None = None) -> tuple[bool, str]:
     # 2. Спроба запуску через команду steam CLI (найнадійніший спосіб з передачею аргументів)
     try:
         subprocess.Popen(["steam", "-applaunch", CP2077_APP_ID, "--launcher-skip", "-modded"])
-        return True, "Гру запущено через Steam (-applaunch 1091500 --launcher-skip -modded)"
+        return True, "Game launched through Steam (-applaunch 1091500 --launcher-skip -modded)"
     except FileNotFoundError:
         pass
 
     # 3. Fallback через xdg-open URL схему
     try:
         subprocess.Popen(["xdg-open", f"steam://run/{CP2077_APP_ID}//--launcher-skip%20-modded/"])
-        return True, "Гру запущено через Steam URL (steam://run/...)"
+        return True, "Game launched through Steam URL (steam://run/...)"
     except Exception as e:
-        return False, f"Не вдалося виконати запуск: {e}"
+        return False, f"Could not launch game: {e}"
