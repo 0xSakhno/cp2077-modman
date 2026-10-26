@@ -3,6 +3,7 @@
 **A Linux-native, symlink-based mod manager for Cyberpunk 2077.**
 
 [![Deployment and UI checks](https://github.com/SanyaCatMeow/cp2077-modman/actions/workflows/core-tests.yml/badge.svg)](https://github.com/SanyaCatMeow/cp2077-modman/actions/workflows/core-tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Manage your mods without copying an entire mod collection into the game directory. The application offers a Night City-inspired desktop interface, per-mod integrity checks, conflict-aware deployment and Steam/Proton integration.
 
@@ -21,6 +22,7 @@ Manage your mods without copying an entire mod collection into the game director
 - **Dependency hints** — detect probable requirements for Redscript, Cyber Engine Tweaks (CET), RED4ext, ArchiveXL and TweakXL.
 - **Steam/Proton helpers** — detect a Proton prefix, inspect/configure DLL overrides and launch Cyberpunk 2077 with mod-related options.
 - **English-language PySide6 GUI**, drag-and-drop archive installation, resizable activity log and an optional CLI.
+- **Simple Linux launchers:** one-command `./run.sh` setup/startup, plus optional desktop-menu integration.
 
 ## Requirements
 
@@ -32,24 +34,58 @@ Manage your mods without copying an entire mod collection into the game director
 
 The library reader supports ZIP, 7z, RAR and TAR-family archives to the extent supported by your distribution's libarchive build. The GUI file picker and drag-and-drop accept `.zip`, `.7z`, `.rar` and `.tar.gz`. Some individual mod archives may need manual repackaging or may not be compatible with the manager.
 
-### Install on Linux
+### Install and launch on Linux
 
-Install the libarchive runtime through your distribution's package manager. Package names differ: for example, `libarchive` on Arch/Fedora, and `libarchive13` or `libarchive13t64` on Debian/Ubuntu variants.
+Install the system **libarchive** runtime using your distribution's package manager (`libarchive` on Arch/Fedora, `libarchive13` or `libarchive13t64` on Debian/Ubuntu variants).
 
-Clone the repository and create an isolated Python environment:
+Clone the project, then start it with the included **executable launcher**:
 
 ```bash
 git clone https://github.com/SanyaCatMeow/cp2077-modman.git
 cd cp2077-modman
+./run.sh
+```
 
+On first launch, `run.sh` checks for Python 3.11+, creates a local `.venv` and installs PySide6 from `requirements.txt` if necessary. Internet access is needed for the first dependency installation; later launches reuse the virtual environment. The launcher does not alter your mods, game files or Steam configuration.
+
+Additional commands:
+
+```bash
+./run.sh --check        # Show prerequisites; no files changed
+./run.sh --setup        # Prepare Python without launching the GUI
+./run.sh --help         # Show launcher options
+```
+
+You can select a Python interpreter using `PYTHON=python3.14 ./run.sh`. If executable permissions were lost while transferring files, `sh run.sh` works too.
+
+#### Optional desktop application shortcut
+
+To put **Cyberpunk 2077 Mod Manager** in your Linux desktop application's menu:
+
+```bash
+./install-desktop.sh
+```
+
+This runs the one-time Python setup and installs a per-user desktop entry under `${XDG_DATA_HOME:-~/.local/share}/applications/`. No root permissions are needed. The shortcut points to the repository location and uses your system's generic games icon.
+
+Remove it with:
+
+```bash
+./install-desktop.sh --uninstall
+```
+
+If you move the cloned repository, rerun the installer to update the shortcut.
+
+#### Manual Python setup (alternative)
+
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-
 python gui.py
 ```
 
-For missing Qt runtime libraries (for example `libEGL.so.1`), install the relevant EGL/OpenGL packages provided by your distribution. Python packages alone cannot supply every system-level Qt library.
+Missing system Qt libraries such as `libEGL.so.1` require the appropriate EGL/OpenGL packages from your Linux distribution; Python packages cannot supply every native Qt runtime dependency.
 
 ## Quick start
 
@@ -154,7 +190,7 @@ Bug reports, Linux distribution compatibility results and pull requests are welc
 
 Please include your Linux distribution, Python/PySide6 versions, game patch, archive format and a sanitized log when reporting bugs. Do not upload proprietary game files or paid mod content.
 
-A standalone open-source license has **not yet been selected**. Please do not assume this repository grants redistribution or modification rights beyond those provided by law or GitHub's applicable terms.
+**License:** [MIT](LICENSE) — Copyright © 2026 SanyaCatMeow. You may use, study, modify, redistribute and even sell copies of this software, as long as the license and copyright notice are included. The software is provided without warranty.
 
 ---
 
