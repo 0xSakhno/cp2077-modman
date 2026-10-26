@@ -87,13 +87,7 @@ class ModManager:
             if owner:
                 raise FileExistsError(f"File conflict with mod '{owner}': {rel}")
             if target.is_symlink():
-                # Refuse unmanaged or other mods' links rather than silently unlinking.
-                if not target.resolve().is_relative_to(MODS_DIR.resolve()):
-                    raise FileExistsError(f"Unmanaged symlink at {rel}")
-                if not target.resolve().is_relative_to(source.parent.parent.resolve()) and target.resolve() != source.resolve():
-                    raise FileExistsError(f"Existing symlink at {rel}")
-                if target.resolve() != source.resolve():
-                    raise FileExistsError(f"Existing symlink at {rel}")
+                raise FileExistsError(f"Existing symlink at {rel}")
             backup = target.with_suffix(target.suffix + ".vanilla_bak")
             if target.exists() and backup.exists() and not target.is_symlink():
                 raise FileExistsError(f"Existing backup prevents safe deployment: {backup}")
