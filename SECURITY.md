@@ -55,8 +55,9 @@ can concurrently modify that workspace or against vulnerabilities in the
 system's libarchive decoder itself.
 
 Crash/power-loss recovery and stronger durability guarantees for deployments
-remain future work. Do not merge the draft pull request for release without
-end-to-end tests on the target Linux environment.
+remain future work. Before advertising a stable release, test installation,
+disabling and restoration on a real target Linux environment and verify the
+archive codecs supplied by the system libarchive build.
 
 ## Tests
 
