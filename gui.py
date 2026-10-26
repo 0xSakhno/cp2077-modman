@@ -1641,7 +1641,8 @@ class CyberpunkModGUI(QMainWindow):
                 self.log("REPAIR", f"{mod_name}: всі симлінки справні.", C_GREEN)
                 return
             copies = [rel for rel, status in report if status == "identical_copy"]
-            other = [(rel, status) for rel, status in report if status != "identical_copy"]
+            missing = [rel for rel, status in report if status == "missing"]
+            other = [(rel, status) for rel, status in report if status not in ("identical_copy", "missing")]
             if other:
                 self.log("WARN", f"{mod_name}: відновлення заблоковано: {other}", C_ORANGE)
                 return
@@ -1649,8 +1650,8 @@ class CyberpunkModGUI(QMainWindow):
                 self,
                 "Безпечне відновлення симлінків",
                 f"Мод: {mod_name}\\n\\n"
-                f"Виявлено {len(copies)} ідентичних звичайних файлів.\\n"
-                "Замінити їх на символічні посилання?\\n"
+                f"Ідентичних копій: {len(copies)}. Відсутніх файлів: {len(missing)}.\\n"
+                "Відновити символічні посилання для цих файлів?\\n"
                 "Змінені або сторонні файли не будуть перезаписані.",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
