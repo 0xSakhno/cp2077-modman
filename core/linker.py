@@ -194,31 +194,72 @@ class ModManager:
         return report
 
     def repair_identical_copies(self, mod_name: str):
-        """Explicitly re-link byte-identical copies, leaving other files untouched."""
+        """Repair identical copies and absent targets, without touching altered files.
+
+        Validate all targets first. Roll back completed changes on an ordinary
+        error; copies are staged in the same directory until commit.
+        """
         report = self.inspect_reconcile(mod_name)
-        blockers = [(rel, status) for rel, status in report if status != "identical_copy"]
+        allowed = {"identical_copy", "missing"}
+        blockers = [(rel, status) for rel, status in report if status not in allowed]
         if blockers:
             raise FileExistsError(f"Repair blocked by unresolved targets: {blockers}")
+
+        game_dir = self.state_mgr.game_path
         root = MODS_DIR / mod_name
-        repaired = []
-        for rel_str, _ in report:
+        steps = []
+        for rel_str, status in report:
             rel = Path(rel_str)
             source = root / rel
-            target = self._target(self.state_mgr.game_path, rel)
-            if (target.is_symlink() or not target.is_file()
-                    or source.is_symlink() or not source.is_file()
-                    or not filecmp.cmp(source, target, shallow=False)):
-                raise FileExistsError(f"Target changed during repair: {rel}")
-            temporary = target.with_name(target.name + ".reconcile-" + uuid.uuid4().hex)
-            target.rename(temporary)
-            try:
-                os.symlink(source, target)
-            except Exception:
-                temporary.rename(target)
-                raise
-            temporary.unlink()
-            repaired.append(str(rel))
-        return repaired
+            target = self._target(game_dir, rel)
+            backup = target.with_suffix(target.suffix + ".vanilla_bak")
+            if source.is_symlink() or not source.is_file():
+                raise FileNotFoundError(f"Mod source is absent or unsafe: {rel}")
+            if backup.exists() or backup.is_symlink():
+                raise FileExistsError(f"Backup requires manual review: {backup}")
+            if status == "identical_copy":
+                if (target.is_symlink() or not target.is_file()
+                        or not filecmp.cmp(source, target, shallow=False)):
+                    raise FileExistsError(f"Target changed during repair: {rel}")
+            elif target.exists() or target.is_symlink():
+                raise FileExistsError(f"Missing target appeared during repair: {rel}")
+            steps.append((rel, status, source, target))
+
+        completed = []
+        try:
+            for rel, status, source, ignored_target in steps:
+                target = self._target(game_dir, rel)
+                if status == "identical_copy":
+                    if (target.is_symlink() or not target.is_file()
+                            or not filecmp.cmp(source, target, shallow=False)):
+                        raise FileExistsError(f"Target changed during repair: {rel}")
+                    temporary = target.with_name(target.name + ".reconcile-" + uuid.uuid4().hex)
+                    target.rename(temporary)
+                else:
+                    if target.exists() or target.is_symlink():
+                        raise FileExistsError(f"Target appeared during repair: {rel}")
+                    if not target.parent.is_dir():
+                        raise FileNotFoundError(f"Parent directory missing: {target.parent}")
+                    temporary = None
+                try:
+                    os.symlink(source, target)
+                except Exception:
+                    if temporary is not None:
+                        temporary.rename(target)
+                    raise
+                completed.append((target, source, temporary))
+        except Exception:
+            for target, source, temporary in reversed(completed):
+                if target.is_symlink() and target.resolve() == source.resolve():
+                    target.unlink()
+                if temporary is not None and temporary.exists():
+                    temporary.rename(target)
+            raise
+
+        for target, source, temporary in completed:
+            if temporary is not None:
+                temporary.unlink()
+        return [str(rel) for rel, _, _, _ in steps]
 
     def remove_mod(self, mod_name: str):
         mods = self.state_mgr.state["mods"]
