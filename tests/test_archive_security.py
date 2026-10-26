@@ -78,7 +78,7 @@ class ArchiveSecurityTests(unittest.TestCase):
             ("r6/scripts/good.reds", "safe"),
             ("../escaped.reds", "malicious"),
         ])
-        with self.assertRaisesRegex(ValueError, "межі"):
+        with self.assertRaisesRegex(ValueError, "escapes"):
             normalizer.extract_archive(archive, self.dest)
         self.assertFalse(escaped.exists())
         self.assertFalse(self.dest.exists())
@@ -96,7 +96,7 @@ class ArchiveSecurityTests(unittest.TestCase):
             {"name": "r6/scripts/bad.reds", "type": tarfile.SYMTYPE,
              "linkname": "../../outside"},
         ])
-        with self.assertRaisesRegex(ValueError, "посилання"):
+        with self.assertRaisesRegex(ValueError, "unsafe archive entry type|Unsupported or unsafe"):
             normalizer.extract_archive(archive, self.dest)
         self.assertFalse(self.dest.exists())
 
@@ -105,14 +105,14 @@ class ArchiveSecurityTests(unittest.TestCase):
             {"name": "r6/scripts/bad.reds", "type": tarfile.LNKTYPE,
              "linkname": "../../outside"},
         ])
-        with self.assertRaisesRegex(ValueError, "посилання"):
+        with self.assertRaisesRegex(ValueError, "unsafe archive entry type|Unsupported or unsafe"):
             normalizer.extract_archive(archive, self.dest)
 
     def test_reject_tar_special_file(self):
         archive = self._tar([
             {"name": "r6/scripts/device", "type": tarfile.CHRTYPE},
         ])
-        with self.assertRaisesRegex(ValueError, "тип"):
+        with self.assertRaisesRegex(ValueError, "unsafe archive entry type|Unsupported or unsafe"):
             normalizer.extract_archive(archive, self.dest)
 
     def test_reject_zip_unix_symlink(self):
@@ -122,7 +122,7 @@ class ArchiveSecurityTests(unittest.TestCase):
         symlink.external_attr = (stat.S_IFLNK | 0o777) << 16
         with zipfile.ZipFile(archive, "w") as z:
             z.writestr(symlink, "../../outside")
-        with self.assertRaisesRegex(ValueError, "посилання"):
+        with self.assertRaisesRegex(ValueError, "unsafe archive entry type|Unsupported or unsafe"):
             normalizer.extract_archive(archive, self.dest)
 
     def test_reject_duplicate_paths(self):
@@ -132,7 +132,7 @@ class ArchiveSecurityTests(unittest.TestCase):
             with zipfile.ZipFile(archive, "w") as z:
                 z.writestr("r6/scripts/duplicated.reds", "first")
                 z.writestr("r6/scripts/duplicated.reds", "second")
-        with self.assertRaisesRegex(ValueError, "Повторюваний"):
+        with self.assertRaisesRegex(ValueError, "Duplicate"):
             normalizer.extract_archive(archive, self.dest)
         self.assertFalse(self.dest.exists())
 
@@ -142,13 +142,13 @@ class ArchiveSecurityTests(unittest.TestCase):
             ("r6/scripts/two.reds", "2"),
         ])
         with patch.object(normalizer, "MAX_ARCHIVE_ENTRIES", 1):
-            with self.assertRaisesRegex(ValueError, "кількості"):
+            with self.assertRaisesRegex(ValueError, "number of entries"):
                 normalizer.extract_archive(archive, self.dest)
 
     def test_reject_excessive_decompressed_size(self):
         archive = self._zip([("r6/scripts/too-big.reds", "123456")])
         with patch.object(normalizer, "MAX_SINGLE_FILE_BYTES", 4):
-            with self.assertRaisesRegex(ValueError, "Завеликий"):
+            with self.assertRaisesRegex(ValueError, "per-file size limit"):
                 normalizer.extract_archive(archive, self.dest)
         self.assertFalse(self.dest.exists())
 
@@ -158,13 +158,13 @@ class ArchiveSecurityTests(unittest.TestCase):
             ("r6/scripts/b.reds", "456"),
         ])
         with patch.object(normalizer, "MAX_TOTAL_EXTRACTED_BYTES", 5):
-            with self.assertRaisesRegex(ValueError, "ліміт"):
+            with self.assertRaisesRegex(ValueError, "size limit"):
                 normalizer.extract_archive(archive, self.dest)
         self.assertFalse(self.dest.exists())
 
     def test_reject_control_characters_in_paths(self):
         archive = self._zip([("r6/scripts/bad\nname.reds", "bad")])
-        with self.assertRaisesRegex(ValueError, "Керівні"):
+        with self.assertRaisesRegex(ValueError, "control characters"):
             normalizer.extract_archive(archive, self.dest)
 
     def test_valid_archive_installs_and_disables_end_to_end(self):
