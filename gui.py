@@ -3,10 +3,9 @@ import os
 import sys
 import subprocess
 import re
-import re
 from datetime import datetime
 
-# Приглушуємо спам попереджень Qt Wayland textinput в терміналі
+# Suppress Qt Wayland text-input warning spam in the terminal
 os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.wayland.textinput=false")
 
 from pathlib import Path
@@ -75,8 +74,8 @@ def compact_mod_identity(name: str) -> tuple[str, str]:
         title = match.group("title")
         version = match.group("version")
         summary = title if version in title else f"{title}  ·  v{version}"
-        return summary, f"NEXUS #{match.group('nexus')}  /  ЗБІРКА {match.group('stamp')[:10]}"
-    return name, "ЛОКАЛЬНИЙ ПАКЕТ"
+        return summary, f"NEXUS #{match.group('nexus')}  /  BUILD {match.group('stamp')[:10]}"
+    return name, "LOCAL PACKAGE"
 
 
 # ─────────────────────── Custom Vector Icons ─────────────────────────
@@ -466,12 +465,12 @@ class DropOverlay(QWidget):
         font = QFont("JetBrains Mono", 15, QFont.Bold)
         p.setFont(font)
         p.setPen(QColor(C_CYAN))
-        p.drawText(QRectF(0, cy + 36, w, 30), Qt.AlignCenter, "ВІДПУСТІТЬ АРХІВИ ДЛЯ ВСТАНОВЛЕННЯ")
+        p.drawText(QRectF(0, cy + 36, w, 30), Qt.AlignCenter, "DROP ARCHIVES TO INSTALL")
 
         sub_font = QFont("JetBrains Mono", 10)
         p.setFont(sub_font)
         p.setPen(QColor(C_TEXT_MUTED))
-        p.drawText(QRectF(0, cy + 64, w, 24), Qt.AlignCenter, "ПІДТРИМУЮТЬСЯ ФОРМАТИ: .ZIP  //  .7Z  //  .RAR  //  .TAR.GZ")
+        p.drawText(QRectF(0, cy + 64, w, 24), Qt.AlignCenter, "SUPPORTED FORMATS: .ZIP  //  .7Z  //  .RAR  //  .TAR.GZ")
 
 
 class SteamConfigDialog(QDialog):
@@ -535,15 +534,15 @@ class SteamConfigDialog(QDialog):
         layout.setSpacing(14)
 
         # Header
-        h_title = QLabel("// НАЛАШТУВАННЯ STEAM & PROTON ДЛЯ МОДІВ")
+        h_title = QLabel("// STEAM & PROTON MOD SETUP")
         h_title.setFont(QFont("JetBrains Mono", 12, QFont.Bold))
         h_title.setStyleSheet(f"color: {C_YELLOW}; letter-spacing: 0.5px;")
         layout.addWidget(h_title)
 
         desc = QLabel(
-            "Для коректної роботи CET, RED4ext, ArchiveXL під Linux/Proton "
-            "необхідно дозволити завантаження сторонніх DLL (version.dll, winmm.dll) "
-            "та передати прапорці пропуску лаунчера."
+            "For CET, RED4ext and ArchiveXL to work on Linux/Proton, "
+            "enable native DLL loading (version.dll, winmm.dll) "
+            "and use the recommended launch options."
         )
         desc.setWordWrap(True)
         desc.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 11px; line-height: 1.4;")
@@ -566,7 +565,7 @@ class SteamConfigDialog(QDialog):
         layout.addWidget(self.status_panel)
 
         # Command line
-        cmd_title = QLabel("ПАРАМЕТРИ ЗАПУСКУ В КЛІЄНТІ STEAM:")
+        cmd_title = QLabel("STEAM LAUNCH OPTIONS")
         cmd_title.setFont(QFont("JetBrains Mono", 9, QFont.Bold))
         cmd_title.setStyleSheet(f"color: {C_CYAN}; letter-spacing: 0.5px;")
         layout.addWidget(cmd_title)
@@ -578,14 +577,14 @@ class SteamConfigDialog(QDialog):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(10)
 
-        self.btn_copy = QPushButton("СКОПІЮВАТИ В БУФЕР")
+        self.btn_copy = QPushButton("COPY LAUNCH OPTIONS")
         self.btn_copy.setObjectName("btnCopy")
         self.btn_copy.setCursor(Qt.PointingHandCursor)
         self.btn_copy.setIcon(VectorIcon.create("check_all", "#050608", 14))
         self.btn_copy.clicked.connect(self._copy_command)
         btn_row.addWidget(self.btn_copy)
 
-        self.btn_apply = QPushButton("ЗАСТОСУВАТИ У PROTON PREFIX")
+        self.btn_apply = QPushButton("APPLY TO PROTON PREFIX")
         self.btn_apply.setObjectName("btnApplyOverrides")
         self.btn_apply.setCursor(Qt.PointingHandCursor)
         self.btn_apply.setIcon(VectorIcon.create("power", "#050608", 14))
@@ -596,17 +595,17 @@ class SteamConfigDialog(QDialog):
 
         # Instructions
         guide = QLabel(
-            "<b>Як застосувати в клієнті Steam:</b><br>"
-            "1. Відкрийте <b>Steam</b> &rarr; ПКМ по <b>Cyberpunk 2077</b> &rarr; <i>Властивості...</i><br>"
-            "2. У вкладці <i>Загальні</i> знайдіть поле <b>Параметри запуску</b>.<br>"
-            "3. Вставте скопійований рядок (це пропустить REDlauncher та запустить гру з модами)."
+            "<b>How to configure Steam:</b><br>"
+            "1. Open <b>Steam</b> &rarr; right-click <b>Cyberpunk 2077</b> &rarr; <i>Properties</i><br>"
+            "2. Under <i>General</i>, find the <b>Launch Options</b> field.<br>"
+            "3. Paste the copied command to skip REDlauncher and launch the modded game."
         )
         guide.setTextFormat(Qt.RichText)
         guide.setWordWrap(True)
         guide.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 11px; background: {C_BG_DEEP}; padding: 12px; border-radius: 4px; border: 1px solid {C_BORDER};")
         layout.addWidget(guide)
 
-        btn_close = QPushButton("ЗАКРИТИ")
+        btn_close = QPushButton("CLOSE")
         btn_close.setCursor(Qt.PointingHandCursor)
         btn_close.clicked.connect(self.accept)
         layout.addWidget(btn_close)
@@ -616,30 +615,30 @@ class SteamConfigDialog(QDialog):
     def _refresh_status(self):
         pfx = find_proton_prefix(self.game_path)
         if not pfx:
-            self.lbl_pfx.setText("<span style='color:#ff003c;'>✖ Proton Prefix (compatdata/1091500) не знайдено</span>")
-            self.lbl_overrides.setText("Запустіть гру хоча б один раз через Steam, щоб створити префікс.")
+            self.lbl_pfx.setText("<span style='color:#ff003c;'>✖ Proton prefix (compatdata/1091500) not found</span>")
+            self.lbl_overrides.setText("Launch the game from Steam once to create its Proton prefix.")
             self.btn_apply.setEnabled(False)
             return
 
-        self.lbl_pfx.setText(f"<span style='color:#00ff88;'>✔ Префікс Proton виявлено:</span> <span style='color:#8c92ac;'>{pfx.name}</span>")
+        self.lbl_pfx.setText(f"<span style='color:#00ff88;'>✔ Proton prefix detected:</span> <span style='color:#8c92ac;'>{pfx.name}</span>")
         ok, missing = check_proton_overrides(pfx)
         if ok:
             self.lbl_overrides.setText(
-                "<span style='color:#00ff88;'>✔ Wine DLL Overrides (version, winmm) <b>активні</b> у Proton!</span>"
+                "<span style='color:#00ff88;'>✔ Wine DLL Overrides (version, winmm) <b>enabled</b> in Proton.</span>"
             )
-            self.btn_apply.setText("ОНОВИТИ DLL OVERRIDES")
+            self.btn_apply.setText("UPDATE DLL OVERRIDES")
         else:
             self.lbl_overrides.setText(
-                f"<span style='color:#ff9500;'>⚠ Відсутні DLL Overrides: <b>{', '.join(missing)}</b></span>"
+                f"<span style='color:#ff9500;'>⚠ Missing DLL overrides: <b>{', '.join(missing)}</b></span>"
             )
-            self.btn_apply.setText("ЗАСТОСУВАТИ DLL OVERRIDES")
+            self.btn_apply.setText("APPLY DLL OVERRIDES")
             self.btn_apply.setEnabled(True)
 
     def _copy_command(self):
         QApplication.clipboard().setText(self.cmd_input.text())
-        self.btn_copy.setText("СКОПІЙОВАНО!")
+        self.btn_copy.setText("COPIED!")
         if self.log_fn:
-            self.log_fn("INFO", "Параметри запуску Steam скопійовано в буфер обміну.", C_CYAN)
+            self.log_fn("INFO", "Steam launch options copied to clipboard.", C_CYAN)
 
     def _apply_overrides(self):
         pfx = find_proton_prefix(self.game_path)
@@ -925,13 +924,13 @@ class ModDetailsPanel(ChamferPanel):
         layout.setContentsMargins(20, 15, 20, 16)
         layout.setSpacing(11)
 
-        header = QLabel("01   /   ІНСПЕКТОР МОДА")
+        header = QLabel("01   /   MOD INSPECTOR")
         header.setStyleSheet(
             f"color: {C_YELLOW}; font-size: 11px; font-weight: 800; letter-spacing: 0.8px;"
         )
         layout.addWidget(header)
 
-        self.lbl_name = QLabel("МОД НЕ ОБРАНО")
+        self.lbl_name = QLabel("NO MOD SELECTED")
         self.lbl_name.setTextFormat(Qt.PlainText)
         self.lbl_name.setWordWrap(True)
         self.lbl_name.setStyleSheet(
@@ -958,13 +957,13 @@ class ModDetailsPanel(ChamferPanel):
         divider.setStyleSheet(f"color: {C_BORDER_LIGHT};")
         layout.addWidget(divider)
 
-        heading = QLabel("СТАН РОЗГОРТАННЯ")
+        heading = QLabel("DEPLOYMENT HEALTH")
         heading.setStyleSheet(
             f"color: {C_TEXT_MUTED}; font-size: 11px; font-weight: 800; letter-spacing: 0.7px;"
         )
         layout.addWidget(heading)
 
-        self.lbl_health = QLabel("Оберіть мод у бібліотеці")
+        self.lbl_health = QLabel("Select a mod from the library")
         self.lbl_health.setWordWrap(True)
         self.lbl_health.setStyleSheet(
             f"color: {C_TEXT_MUTED}; font-size: 13px; font-weight: 700;"
@@ -996,7 +995,7 @@ class ModDetailsPanel(ChamferPanel):
         metric_layout.setSpacing(14)
         col_a = QVBoxLayout()
         col_a.setSpacing(3)
-        label_files = QLabel("ПОСИЛАНЬ")
+        label_files = QLabel("LINKS")
         label_files.setStyleSheet(f"color: {C_TEXT_DIM}; font-size: 10px; font-weight: 700;")
         self.lbl_files = QLabel("—")
         self.lbl_files.setStyleSheet(
@@ -1007,7 +1006,7 @@ class ModDetailsPanel(ChamferPanel):
         metric_layout.addLayout(col_a, 1)
         col_b = QVBoxLayout()
         col_b.setSpacing(3)
-        label_size = QLabel("РОЗМІР")
+        label_size = QLabel("SIZE")
         label_size.setStyleSheet(f"color: {C_TEXT_DIM}; font-size: 10px; font-weight: 700;")
         self.lbl_size = QLabel("—")
         self.lbl_size.setStyleSheet(f"color: {C_TEXT}; font-size: 20px; font-weight: 800;")
@@ -1016,7 +1015,7 @@ class ModDetailsPanel(ChamferPanel):
         metric_layout.addLayout(col_b, 1)
         layout.addWidget(metric_box)
 
-        lbl_types_hdr = QLabel("СКЛАД ПАКЕТА")
+        lbl_types_hdr = QLabel("PACKAGE CONTENTS")
         lbl_types_hdr.setStyleSheet(
             f"color: {C_TEXT_MUTED}; font-size: 11px; font-weight: 800; letter-spacing: 0.7px;"
         )
@@ -1029,7 +1028,7 @@ class ModDetailsPanel(ChamferPanel):
         )
         layout.addWidget(self.lbl_types)
 
-        lbl_deps_hdr = QLabel("НЕОБХІДНІ ФРЕЙМВОРКИ")
+        lbl_deps_hdr = QLabel("REQUIRED FRAMEWORKS")
         lbl_deps_hdr.setStyleSheet(
             f"color: {C_TEXT_MUTED}; font-size: 11px; font-weight: 800; letter-spacing: 0.7px;"
         )
@@ -1041,7 +1040,7 @@ class ModDetailsPanel(ChamferPanel):
         )
         layout.addWidget(self.lbl_deps)
 
-        self.lbl_conflicts_hdr = QLabel("ПОТЕНЦІЙНІ КОНФЛІКТИ")
+        self.lbl_conflicts_hdr = QLabel("POTENTIAL CONFLICTS")
         self.lbl_conflicts_hdr.setStyleSheet(
             f"color: {C_ORANGE}; font-size: 11px; font-weight: 800;"
         )
@@ -1069,26 +1068,26 @@ class ModDetailsPanel(ChamferPanel):
         actions.setContentsMargins(16, 10, 16, 12)
         actions.setSpacing(7)
 
-        self.btn_repair = QPushButton("ВІДНОВИТИ ПОСИЛАННЯ")
+        self.btn_repair = QPushButton("REPAIR LINKS")
         self.btn_repair.setObjectName("btnYellow")
         self.btn_repair.setIcon(VectorIcon.create("shield", C_YELLOW, 15))
         self.btn_repair.setCursor(Qt.PointingHandCursor)
-        self.btn_repair.setToolTip("Тільки для безпечно відновлюваних файлів")
+        self.btn_repair.setToolTip("Only safely recoverable files can be repaired")
         self.btn_repair.hide()
         actions.addWidget(self.btn_repair)
 
         footer_buttons = QHBoxLayout()
         footer_buttons.setSpacing(8)
-        self.btn_toggle = QPushButton("ПЕРЕМКНУТИ СТАН")
+        self.btn_toggle = QPushButton("TOGGLE MOD")
         self.btn_toggle.setObjectName("btnPrimary")
         self.btn_toggle.setIcon(VectorIcon.create("power", "#080c13", 15))
         self.btn_toggle.setCursor(Qt.PointingHandCursor)
         footer_buttons.addWidget(self.btn_toggle, 2)
 
-        self.btn_delete = QPushButton("ВИДАЛИТИ")
+        self.btn_delete = QPushButton("DELETE")
         self.btn_delete.setObjectName("btnDanger")
         self.btn_delete.setIcon(VectorIcon.create("trash", C_RED, 15))
-        self.btn_delete.setToolTip("Повністю видалити вибрану модифікацію")
+        self.btn_delete.setToolTip("Permanently delete the selected mod")
         self.btn_delete.setCursor(Qt.PointingHandCursor)
         footer_buttons.addWidget(self.btn_delete, 1)
         actions.addLayout(footer_buttons)
@@ -1121,21 +1120,21 @@ class ModDetailsPanel(ChamferPanel):
 
         if health_level == "repairable":
             pill_text, color, filled = "REPAIR AVAILABLE", C_YELLOW, True
-            health_text = "Потрібне відновлення посилань"
-            detail = f"{len(issues)} файлів можна безпечно відновити вручну"
+            health_text = "Some links need repair"
+            detail = f"{len(issues)} files can be repaired safely"
         elif health_level in ("blocked", "error"):
             pill_text, color, filled = "MANUAL REVIEW", C_RED, True
-            health_text = "Виявлено проблему з файлами"
+            health_text = "File integrity needs attention"
             detail = (health.get("error") or
-                      f"{len(issues)} файлів потребують ручної перевірки")
+                      f"{len(issues)} files require manual inspection")
         elif enabled:
             pill_text, color, filled = "DEPLOYMENT HEALTHY", C_GREEN, True
-            health_text = "Усі посилання на своїх місцях"
-            detail = f"Перевірено {len(links)} активних посилань"
+            health_text = "All deployed links are healthy"
+            detail = f"Verified {len(links)} active links"
         else:
             pill_text, color, filled = "STANDBY // OFF", C_TEXT_DIM, False
-            health_text = "Модифікацію вимкнено"
-            detail = "Файли залишаються у локальному сховищі"
+            health_text = "Mod is disabled"
+            detail = "Files remain in local mod storage"
 
         self._set_pill(pill_text, color, filled)
         self.set_accent(color)
@@ -1150,7 +1149,7 @@ class ModDetailsPanel(ChamferPanel):
             f"QProgressBar::chunk {{background: {color}; border-radius: 3px;}}"
         )
         self.btn_repair.setVisible(health_level == "repairable")
-        self.btn_toggle.setText("ВИМКНУТИ МОД" if enabled else "УВІМКНУТИ МОД")
+        self.btn_toggle.setText("DISABLE MOD" if enabled else "ENABLE MOD")
         self.btn_toggle.setEnabled(True)
         self.btn_delete.setEnabled(True)
         self.lbl_files.setText(str(len(links)))
@@ -1177,7 +1176,7 @@ class ModDetailsPanel(ChamferPanel):
                     f"{extension}: {count}" for extension, count in types
                 ))
             else:
-                self.lbl_types.setText("Немає файлів")
+                self.lbl_types.setText("No files found")
                 self.lbl_types.setToolTip("")
 
             if analysis.required_frameworks:
@@ -1186,13 +1185,13 @@ class ModDetailsPanel(ChamferPanel):
                     fw = get_framework_info(fid)
                     name = fw.name if fw else fid
                     if fid in analysis.missing_frameworks:
-                        parts.append(f'<div style="color:{C_RED}; font-weight:700;">●  {name}  — відсутній</div>')
+                        parts.append(f'<div style="color:{C_RED}; font-weight:700;">●  {name}  — missing</div>')
                     else:
-                        parts.append(f'<div style="color:{C_GREEN}; font-weight:700;">●  {name}  — готовий</div>')
+                        parts.append(f'<div style="color:{C_GREEN}; font-weight:700;">●  {name}  — ready</div>')
                 self.lbl_deps.setText("".join(parts))
             else:
                 self.lbl_deps.setText(
-                    f'<span style="color:{C_TEXT_DIM};">Не потребує окремих фреймворків</span>'
+                    f'<span style="color:{C_TEXT_DIM};">No additional frameworks required</span>'
                 )
         else:
             self.lbl_types.setText("—")
@@ -1208,13 +1207,13 @@ class ModDetailsPanel(ChamferPanel):
             self.lbl_conflicts.setText("\n".join(others))
 
     def clear_details(self):
-        self.lbl_name.setText("МОД НЕ ОБРАНО")
+        self.lbl_name.setText("NO MOD SELECTED")
         self.lbl_mod_meta.setText("")
-        self._set_pill("ОЧІКУВАННЯ ВИБОРУ", C_TEXT_DIM, False)
+        self._set_pill("AWAITING SELECTION", C_TEXT_DIM, False)
         self.set_accent(C_YELLOW)
-        self.lbl_health.setText("Оберіть мод у бібліотеці")
+        self.lbl_health.setText("Select a mod from the library")
         self.lbl_health.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 13px;")
-        self.lbl_health_detail.setText("Деталі та стан розгортання з’являться тут")
+        self.lbl_health_detail.setText("Mod details and deployment health will appear here")
         self.health_bar.setValue(0)
         self.lbl_files.setText("—")
         self.lbl_size.setText("—")
@@ -1223,7 +1222,7 @@ class ModDetailsPanel(ChamferPanel):
         self.lbl_conflicts_hdr.hide()
         self.lbl_conflicts.hide()
         self.btn_repair.hide()
-        self.btn_toggle.setText("ПЕРЕМКНУТИ СТАН")
+        self.btn_toggle.setText("TOGGLE MOD")
         self.btn_toggle.setEnabled(False)
         self.btn_delete.setEnabled(False)
 
@@ -1272,7 +1271,7 @@ class CyberpunkModGUI(QMainWindow):
         title = QLabel("CYBERPUNK 2077  /  MOD MANAGER")
         title.setObjectName("headerTitle")
         title_col.addWidget(title)
-        subtitle = QLabel("NIGHT CITY  •  КОНТРОЛЬ МОДИФІКАЦІЙ  •  LINUX")
+        subtitle = QLabel("NIGHT CITY  •  MOD DEPLOYMENT CONTROL  •  LINUX")
         subtitle.setObjectName("headerSubtitle")
         title_col.addWidget(subtitle)
         header_layout.addLayout(title_col)
@@ -1284,19 +1283,19 @@ class CyberpunkModGUI(QMainWindow):
         self.version_pill_layout.setContentsMargins(0, 0, 8, 0)
         header_layout.addWidget(self.version_pill_holder)
 
-        btn_steam_cfg = QPushButton("ПАРАМЕТРИ STEAM")
+        btn_steam_cfg = QPushButton("STEAM SETTINGS")
         btn_steam_cfg.setObjectName("btnSteamCfg")
         btn_steam_cfg.setIcon(VectorIcon.create("steam", C_CYAN, 14))
         btn_steam_cfg.setCursor(Qt.PointingHandCursor)
-        btn_steam_cfg.setToolTip("Параметри запуску гри та налаштування Proton DLL Overrides для Steam")
+        btn_steam_cfg.setToolTip("Steam launch options and Proton DLL overrides")
         btn_steam_cfg.clicked.connect(self.show_steam_config_dialog)
         header_layout.addWidget(btn_steam_cfg)
 
-        btn_launch = QPushButton("ЗАПУСТИТИ ГРУ")
+        btn_launch = QPushButton("LAUNCH GAME")
         btn_launch.setObjectName("btnLaunch")
         btn_launch.setIcon(VectorIcon.create("play", "#050608", 14))
         btn_launch.setCursor(Qt.PointingHandCursor)
-        btn_launch.setToolTip("Запустити Cyberpunk 2077 через Steam з модами (--launcher-skip -modded)")
+        btn_launch.setToolTip("Launch Cyberpunk 2077 through Steam with mods (--launcher-skip -modded)")
         btn_launch.clicked.connect(self.launch_game)
         header_layout.addWidget(btn_launch)
 
@@ -1311,10 +1310,10 @@ class CyberpunkModGUI(QMainWindow):
         metrics_row = QHBoxLayout()
         metrics_row.setSpacing(14)
 
-        self.card_total = MetricCard("БІБЛІОТЕКА", "0", "МОДИФІКАЦІЙ", C_CYAN)
-        self.card_active = MetricCard("АКТИВНІ МОДИ", "0", "0 ПОСИЛАНЬ", C_GREEN)
-        self.card_conflicts = MetricCard("КОНФЛІКТИ", "0", "ПРОБЛЕМ НЕМАЄ", C_GREEN)
-        self.card_frameworks = MetricCard("ФРЕЙМВОРКИ", "0/0", "ПЕРЕВІРКА", C_YELLOW)
+        self.card_total = MetricCard("LIBRARY", "0", "MODS", C_CYAN)
+        self.card_active = MetricCard("ACTIVE MODS", "0", "0 LINKS", C_GREEN)
+        self.card_conflicts = MetricCard("CONFLICTS", "0", "NO ISSUES", C_GREEN)
+        self.card_frameworks = MetricCard("FRAMEWORKS", "0/0", "CHECKING", C_YELLOW)
 
         metrics_row.addWidget(self.card_total, stretch=1)
         metrics_row.addWidget(self.card_active, stretch=1)
@@ -1328,22 +1327,22 @@ class CyberpunkModGUI(QMainWindow):
         path_layout.setContentsMargins(14, 11, 14, 11)
         path_layout.setSpacing(10)
 
-        path_lbl = QLabel("ІНСТАЛЯЦІЯ ГРИ")
+        path_lbl = QLabel("GAME DIRECTORY")
         path_lbl.setStyleSheet(f"color: {C_CYAN}; font-size: 11px; font-weight: 800;")
         path_layout.addWidget(path_lbl)
 
         self.path_input = QLineEdit(str(self.mgr.state_mgr.game_path))
-        self.path_input.setPlaceholderText("Шлях до кореневої директорії Cyberpunk 2077...")
+        self.path_input.setPlaceholderText("Path to your Cyberpunk 2077 installation...")
         self.path_input.editingFinished.connect(self.update_manual_path)
         path_layout.addWidget(self.path_input, stretch=1)
 
-        btn_browse = QPushButton("ВИБРАТИ")
+        btn_browse = QPushButton("BROWSE")
         btn_browse.setIcon(VectorIcon.create("folder", C_TEXT, 14))
         btn_browse.setCursor(Qt.PointingHandCursor)
         btn_browse.clicked.connect(self.browse_game_dir)
         path_layout.addWidget(btn_browse)
 
-        btn_auto = QPushButton("ЗНАЙТИ ГРУ")
+        btn_auto = QPushButton("AUTO-DETECT")
         btn_auto.setObjectName("btnYellow")
         btn_auto.setIcon(VectorIcon.create("radar", C_YELLOW, 14))
         btn_auto.setCursor(Qt.PointingHandCursor)
@@ -1355,11 +1354,11 @@ class CyberpunkModGUI(QMainWindow):
         # ── 3. Library header and two balanced action rows ──
         library_heading = QHBoxLayout()
         library_heading.setSpacing(10)
-        library_title = QLabel("БІБЛІОТЕКА МОДИФІКАЦІЙ")
+        library_title = QLabel("MOD LIBRARY")
         library_title.setObjectName("sectionTitle")
         library_heading.addWidget(library_title)
         library_heading.addStretch(1)
-        self.lbl_list_count = QLabel("0 МОДІВ")
+        self.lbl_list_count = QLabel("0 MODS")
         self.lbl_list_count.setObjectName("sectionMeta")
         library_heading.addWidget(self.lbl_list_count)
         workspace.addLayout(library_heading)
@@ -1367,7 +1366,7 @@ class CyberpunkModGUI(QMainWindow):
         primary_actions = QHBoxLayout()
         primary_actions.setSpacing(10)
 
-        btn_add = QPushButton("ДОДАТИ МОДИФІКАЦІЮ")
+        btn_add = QPushButton("INSTALL MOD")
         btn_add.setObjectName("btnPrimary")
         btn_add.setIcon(VectorIcon.create("plus", "#080c13", 16))
         btn_add.setCursor(Qt.PointingHandCursor)
@@ -1375,7 +1374,7 @@ class CyberpunkModGUI(QMainWindow):
         primary_actions.addWidget(btn_add)
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Знайти мод за назвою або версією...")
+        self.search_input.setPlaceholderText("Search mods by name or version...")
         self.search_input.setMinimumWidth(150)
         self.search_input.addAction(
             VectorIcon.create("search", C_TEXT_MUTED, 16), QLineEdit.LeadingPosition
@@ -1385,11 +1384,11 @@ class CyberpunkModGUI(QMainWindow):
         primary_actions.addWidget(self.search_input, stretch=1)
 
         self.status_filter = QComboBox()
-        self.status_filter.addItem("Усі моди", "all")
-        self.status_filter.addItem("Активні", "active")
-        self.status_filter.addItem("Вимкнені", "disabled")
-        self.status_filter.addItem("З проблемами", "issues")
-        self.status_filter.setToolTip("Фільтрувати бібліотеку за станом")
+        self.status_filter.addItem("All mods", "all")
+        self.status_filter.addItem("Enabled", "active")
+        self.status_filter.addItem("Disabled", "disabled")
+        self.status_filter.addItem("Needs attention", "issues")
+        self.status_filter.setToolTip("Filter mods by deployment state")
         self.status_filter.currentIndexChanged.connect(self.filter_table)
         primary_actions.addWidget(self.status_filter)
 
@@ -1397,32 +1396,32 @@ class CyberpunkModGUI(QMainWindow):
 
         secondary_actions = QHBoxLayout()
         secondary_actions.setSpacing(9)
-        lbl_actions = QLabel("ШВИДКІ ДІЇ")
+        lbl_actions = QLabel("QUICK ACTIONS")
         lbl_actions.setObjectName("sectionMeta")
         secondary_actions.addWidget(lbl_actions)
         secondary_actions.addStretch(1)
 
-        btn_verify = QPushButton("ПЕРЕВІРИТИ СТАН")
+        btn_verify = QPushButton("VERIFY INTEGRITY")
         btn_verify.setIcon(VectorIcon.create("shield", C_CYAN, 15))
         btn_verify.setCursor(Qt.PointingHandCursor)
-        btn_verify.setToolTip("Перевірити цілісність усіх активних модів")
+        btn_verify.setToolTip("Audit deployment links for all enabled mods")
         btn_verify.clicked.connect(self.verify_all_symlinks)
         secondary_actions.addWidget(btn_verify)
 
-        btn_repair = QPushButton("REPAIR МОДА")
+        btn_repair = QPushButton("REPAIR MOD")
         btn_repair.setIcon(VectorIcon.create("radar", C_YELLOW, 15))
-        btn_repair.setToolTip("Відновити пошкоджені посилання вибраного мода")
+        btn_repair.setToolTip("Repair recoverable links for the selected mod")
         btn_repair.setCursor(Qt.PointingHandCursor)
         btn_repair.clicked.connect(self.repair_selected_mod)
         secondary_actions.addWidget(btn_repair)
 
-        btn_enable_all = QPushButton("УВІМКНУТИ ВСІ")
+        btn_enable_all = QPushButton("ENABLE ALL")
         btn_enable_all.setIcon(VectorIcon.create("check_all", C_GREEN, 14))
         btn_enable_all.setCursor(Qt.PointingHandCursor)
         btn_enable_all.clicked.connect(self.enable_all_mods)
         secondary_actions.addWidget(btn_enable_all)
 
-        btn_disable_all = QPushButton("ВИМКНУТИ ВСІ")
+        btn_disable_all = QPushButton("DISABLE ALL")
         btn_disable_all.setIcon(VectorIcon.create("close_all", C_RED, 14))
         btn_disable_all.setCursor(Qt.PointingHandCursor)
         btn_disable_all.clicked.connect(self.disable_all_mods)
@@ -1441,7 +1440,7 @@ class CyberpunkModGUI(QMainWindow):
 
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels([
-            "СТАН", "ЗДОРОВ’Я", "МОДИФІКАЦІЯ", "ЗАЛЕЖНОСТІ", "ФАЙЛІВ"
+            "ENABLED", "HEALTH", "MOD", "DEPENDENCIES", "FILES"
         ])
         hdr = self.table.horizontalHeader()
         hdr.setSectionResizeMode(0, QHeaderView.Fixed)
@@ -1463,7 +1462,7 @@ class CyberpunkModGUI(QMainWindow):
         self.table.verticalHeader().setDefaultSectionSize(48)
         self.table.cellDoubleClicked.connect(lambda r, c: self.toggle_selected_mod())
         self.table.currentCellChanged.connect(self._on_selection_changed)
-        self.table.setToolTip("Подвійний клік — змінити стан вибраного мода")
+        self.table.setToolTip("Double-click to enable or disable the selected mod")
         self.library_splitter.addWidget(self.table)
 
         self.details_panel = ModDetailsPanel()
@@ -1484,22 +1483,22 @@ class CyberpunkModGUI(QMainWindow):
         log_hdr_row = QHBoxLayout()
         log_hdr_row.setSpacing(10)
 
-        log_title = QLabel("ЖУРНАЛ ПОДІЙ")
+        log_title = QLabel("ACTIVITY LOG")
         log_title.setObjectName("sectionTitle")
         log_hdr_row.addWidget(log_title)
 
-        self.lbl_log_count = QLabel("0 ЗАПИСІВ")
+        self.lbl_log_count = QLabel("0 ENTRIES")
         self.lbl_log_count.setObjectName("sectionMeta")
         log_hdr_row.addWidget(self.lbl_log_count)
         log_hdr_row.addStretch(1)
 
-        btn_copy_log = QPushButton("КОПІЮВАТИ")
+        btn_copy_log = QPushButton("COPY")
         btn_copy_log.setCursor(Qt.PointingHandCursor)
-        btn_copy_log.setToolTip("Скопіювати весь журнал у буфер обміну")
+        btn_copy_log.setToolTip("Copy the complete activity log to clipboard")
         btn_copy_log.clicked.connect(self._copy_log)
         log_hdr_row.addWidget(btn_copy_log)
 
-        btn_clear_log = QPushButton("ОЧИСТИТИ")
+        btn_clear_log = QPushButton("CLEAR")
         btn_clear_log.setCursor(Qt.PointingHandCursor)
         btn_clear_log.clicked.connect(self._clear_log)
         log_hdr_row.addWidget(btn_clear_log)
@@ -1526,7 +1525,7 @@ class CyberpunkModGUI(QMainWindow):
         self.setStatusBar(self.status_bar)
         self.lbl_status_path = QLabel()
         self.lbl_status_shortcuts = QLabel(
-            "SPACE — стан    DEL — видалити    CTRL+O — додати    CTRL+K — пошук"
+            "SPACE — toggle    DEL — delete    CTRL+O — install    CTRL+K — search"
         )
         self.lbl_status_shortcuts.setStyleSheet(
             f"color: {C_TEXT_MUTED}; font-family: 'DejaVu Sans Mono'; font-size: 10px;"
@@ -1563,12 +1562,12 @@ class CyberpunkModGUI(QMainWindow):
 
     def _copy_log(self):
         QApplication.clipboard().setText(self.log_box.toPlainText())
-        self.status_bar.showMessage("Журнал скопійовано", 2500)
+        self.status_bar.showMessage("Log copied to clipboard", 2500)
 
     def _clear_log(self):
         self.log_box.clear()
         self._log_lines = 0
-        self.lbl_log_count.setText("0 ЗАПИСІВ")
+        self.lbl_log_count.setText("0 ENTRIES")
 
     # ────────────────────── Logging ──────────────────────
 
@@ -1581,7 +1580,7 @@ class CyberpunkModGUI(QMainWindow):
         )
         self.log_box.append(html)
         self._log_lines += 1
-        self.lbl_log_count.setText(f"{self._log_lines} ЗАПИСІВ")
+        self.lbl_log_count.setText(f"{self._log_lines} ENTRIES")
         sb = self.log_box.verticalScrollBar()
         sb.setValue(sb.maximum())
 
@@ -1600,7 +1599,7 @@ class CyberpunkModGUI(QMainWindow):
         gv = get_game_version(gp)
         if gv:
             self.version_pill_layout.addWidget(StatusPill(f"PATCH {gv}", C_CYAN, True))
-            self.log("INFO", f"Визначено версію клієнта Cyberpunk 2077: <b>{gv}</b>", C_CYAN)
+            self.log("INFO", f"Detected Cyberpunk 2077 version: <b>{gv}</b>", C_CYAN)
         else:
             self.version_pill_layout.addWidget(StatusPill("EXE NOT FOUND", C_RED, False))
 
@@ -1620,14 +1619,14 @@ class CyberpunkModGUI(QMainWindow):
 
         if installed:
             names = [get_framework_info(fid).name for fid in installed]
-            self.log("CORE", f"Активні базові фреймворки: <b>{', '.join(names)}</b>", C_GREEN)
+            self.log("CORE", f"Enabled базові фреймворки: <b>{', '.join(names)}</b>", C_GREEN)
         else:
-            self.log("WARN", "Базові фреймворки (CET / RED4ext / Redscript) ще не встановлені.", C_ORANGE)
+            self.log("WARN", "No core frameworks (CET / RED4ext / Redscript) detected.", C_ORANGE)
 
         accent = C_GREEN if len(installed) > 0 else C_ORANGE
         self.card_frameworks.set_metric(
             f"{len(installed)}/{total_fw}",
-            "ВСТАНОВЛЕНО",
+            "INSTALLED",
             accent
         )
 
@@ -1640,24 +1639,24 @@ class CyberpunkModGUI(QMainWindow):
         conflicts = detect_conflicts(mods)
         conflict_files = len(set(c.file_path for c in conflicts))
 
-        self.card_total.set_metric(str(total), "У СХОВИЩІ", C_CYAN)
+        self.card_total.set_metric(str(total), "IN STORAGE", C_CYAN)
         self.card_active.set_metric(
             str(active),
-            f"{total_links} ЛІНКІВ",
+            f"{total_links} LINKS",
             C_GREEN if active > 0 else C_TEXT_MUTED
         )
 
         if conflict_files > 0:
-            self.card_conflicts.set_metric(str(conflict_files), "ПЕРЕКРИТТЯ", C_ORANGE)
+            self.card_conflicts.set_metric(str(conflict_files), "OVERLAPS", C_ORANGE)
         else:
-            self.card_conflicts.set_metric("0", "ЧИСТО", C_GREEN)
+            self.card_conflicts.set_metric("0", "CLEAN", C_GREEN)
 
         gp = self.mgr.state_mgr.game_path
         statuses = get_all_frameworks_status(gp)
         inst_count = sum(1 for ok in statuses.values() if ok)
         self.card_frameworks.set_metric(
             f"{inst_count}/{len(statuses)}",
-            "ГОТОВІ" if inst_count else "ВІДСУТНІ",
+            "READY" if inst_count else "MISSING",
             C_GREEN if inst_count else C_YELLOW
         )
 
@@ -1667,13 +1666,13 @@ class CyberpunkModGUI(QMainWindow):
         gp = self.mgr.state_mgr.game_path
         exe = gp / "bin/x64/Cyberpunk2077.exe"
         if exe.exists():
-            self.log("READY", f"Підключено директорію гри: <b>{gp}</b>", C_GREEN)
-            self.lbl_status_path.setText("●  ГРУ ПІДКЛЮЧЕНО")
+            self.log("READY", f"Game directory connected: <b>{gp}</b>", C_GREEN)
+            self.lbl_status_path.setText("●  GAME CONNECTED")
             self.lbl_status_path.setToolTip(str(gp))
             self.lbl_status_path.setStyleSheet(f"color: {C_GREEN}; font-weight: 800;")
         else:
-            self.log("ERR", f"Виконуваний файл Cyberpunk2077.exe не знайдено у: {gp}", C_RED)
-            self.lbl_status_path.setText("●  ГРУ НЕ ЗНАЙДЕНО")
+            self.log("ERR", f"Cyberpunk2077.exe not found in: {gp}", C_RED)
+            self.lbl_status_path.setText("●  GAME NOT FOUND")
             self.lbl_status_path.setToolTip(str(gp))
             self.lbl_status_path.setStyleSheet(f"color: {C_RED}; font-weight: 800;")
 
@@ -1688,7 +1687,7 @@ class CyberpunkModGUI(QMainWindow):
 
     def browse_game_dir(self):
         folder = QFileDialog.getExistingDirectory(
-            self, "Виберіть кореневу папку Cyberpunk 2077",
+            self, "Select the Cyberpunk 2077 installation directory",
             str(self.mgr.state_mgr.game_path)
         )
         if folder:
@@ -1696,7 +1695,7 @@ class CyberpunkModGUI(QMainWindow):
             self.update_manual_path()
 
     def auto_detect_game(self):
-        self.log("SCAN", "Сканування бібліотек Steam та точок монтування...", C_CYAN)
+        self.log("SCAN", "Scanning Steam libraries and mount points...", C_CYAN)
         QApplication.processEvents()
         found = auto_find_cyberpunk()
         self.path_input.setText(str(found))
@@ -1757,7 +1756,7 @@ class CyberpunkModGUI(QMainWindow):
                 "error": ("ERROR", C_RED, True),
             }
             label, color, filled = health_styles.get(level, ("UNKNOWN", C_ORANGE, False))
-            tooltip_lines = [f"Стан мода: {level}"]
+            tooltip_lines = [f"Mod status: {level}"]
             if health.get("error"):
                 tooltip_lines.append(health["error"])
             tooltip_lines.extend(
@@ -1827,8 +1826,8 @@ class CyberpunkModGUI(QMainWindow):
         self._update_dashboard()
         visible = self.table.rowCount()
         self.lbl_list_count.setText(
-            f"{visible} ІЗ {len(mods)} МОДІВ" if visible != len(mods)
-            else f"{visible} МОДІВ У БІБЛІОТЕЦІ"
+            f"{visible} OF {len(mods)} MODS" if visible != len(mods)
+            else f"{visible} MODS IN LIBRARY"
         )
         self._adapt_columns()
 
@@ -1867,10 +1866,10 @@ class CyberpunkModGUI(QMainWindow):
         try:
             if target_state:
                 self.mgr.enable_mod(mod_name)
-                self.log("LINK", f"Модифікацію <b>{mod_name}</b> злінковано з грою.", C_GREEN)
+                self.log("LINK", f"Mod <b>{mod_name}</b> has been deployed.", C_GREEN)
             else:
                 self.mgr.disable_mod(mod_name)
-                self.log("UNLINK", f"Симлінки модифікації <b>{mod_name}</b> відключено.", C_YELLOW)
+                self.log("UNLINK", f"Mod <b>{mod_name}</b> has been disabled and unlinked.", C_YELLOW)
             self.refresh_table()
         except Exception as e:
             self.log("ERR", f"{mod_name}: {e}", C_RED)
@@ -1889,9 +1888,9 @@ class CyberpunkModGUI(QMainWindow):
         downloads_dir = str(Path.home() / "Downloads")
         files, _ = QFileDialog.getOpenFileNames(
             self,
-            "Виберіть архіви модифікацій",
+            "Select mod archives",
             downloads_dir,
-            "Архіви (*.zip *.7z *.rar *.tar.gz);;Усі файли (*)"
+            "Archives (*.zip *.7z *.rar *.tar.gz);;All files (*)"
         )
         if files:
             self._install_archives(files)
@@ -1900,10 +1899,10 @@ class CyberpunkModGUI(QMainWindow):
         for fpath in file_paths:
             try:
                 fname = Path(fpath).name
-                self.log("DEPLOY", f"Розпакування та нормалізація <b>{fname}</b>...", C_CYAN)
+                self.log("DEPLOY", f"Extracting and preparing <b>{fname}</b>...", C_CYAN)
                 QApplication.processEvents()
                 self.mgr.install_from_archive(fpath)
-                self.log("OK", f"Мод <b>{Path(fpath).stem}</b> інтегровано та активовано.", C_GREEN)
+                self.log("OK", f"Mod <b>{Path(fpath).stem}</b> installed and enabled.", C_GREEN)
             except Exception as e:
                 self.log("FAIL", f"{Path(fpath).name}: {e}", C_RED)
         self._check_frameworks_status()
@@ -1912,7 +1911,7 @@ class CyberpunkModGUI(QMainWindow):
     def toggle_selected_mod(self):
         mod_name = self.get_selected_mod_name()
         if not mod_name:
-            self.log("WARN", "Спочатку виберіть модифікацію у списку.", C_YELLOW)
+            self.log("WARN", "Select a mod from the list first.", C_YELLOW)
             return
         is_enabled = self.mgr.state_mgr.state["mods"][mod_name]["enabled"]
         self._on_switch_toggled(mod_name, not is_enabled)
@@ -1924,9 +1923,9 @@ class CyberpunkModGUI(QMainWindow):
 
         reply = QMessageBox.warning(
             self,
-            "Підтвердження видалення",
-            f"Повністю видалити модифікацію «{mod_name}»?\n\n"
-            f"Усі симлінки буде відключено, а файли мода видалено зі сховища.",
+            "Confirm deletion",
+            f"Permanently delete mod '{mod_name}'?\n\n"
+            f"All managed links will be removed, and the mod files will be deleted from local storage.",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
@@ -1935,7 +1934,7 @@ class CyberpunkModGUI(QMainWindow):
 
         try:
             self.mgr.remove_mod(mod_name)
-            self.log("PURGE", f"Модифікацію <b>{mod_name}</b> видалено з диска.", C_RED)
+            self.log("PURGE", f"Mod <b>{mod_name}</b> removed from local storage.", C_RED)
             self.details_panel.clear_details()
             self.refresh_table()
         except Exception as e:
@@ -1952,7 +1951,7 @@ class CyberpunkModGUI(QMainWindow):
                 except Exception as e:
                     self.log("ERR", f"{name}: {e}", C_RED)
         if count:
-            self.log("BATCH", f"Масово активовано модифікацій: <b>{count}</b>", C_GREEN)
+            self.log("BATCH", f"Mods enabled: <b>{count}</b>", C_GREEN)
         self.refresh_table()
 
     def disable_all_mods(self):
@@ -1966,46 +1965,46 @@ class CyberpunkModGUI(QMainWindow):
                 except Exception as e:
                     self.log("ERR", f"{name}: {e}", C_RED)
         if count:
-            self.log("BATCH", f"Масово деактивовано модифікацій: <b>{count}</b>", C_YELLOW)
+            self.log("BATCH", f"Mods disabled: <b>{count}</b>", C_YELLOW)
         self.refresh_table()
 
 
     def repair_selected_mod(self):
         mod_name = self.get_selected_mod_name()
         if not mod_name:
-            self.log("WARN", "Спочатку виберіть модифікацію.", C_YELLOW)
+            self.log("WARN", "Select a mod first.", C_YELLOW)
             return
         try:
             report = self.mgr.inspect_reconcile(mod_name)
             if not report:
-                self.log("REPAIR", f"{mod_name}: всі симлінки справні.", C_GREEN)
+                self.log("REPAIR", f"{mod_name}: all deployed links are healthy.", C_GREEN)
                 return
             copies = [rel for rel, status in report if status == "identical_copy"]
             missing = [rel for rel, status in report if status == "missing"]
             other = [(rel, status) for rel, status in report if status not in ("identical_copy", "missing")]
             if other:
-                self.log("WARN", f"{mod_name}: відновлення заблоковано: {other}", C_ORANGE)
+                self.log("WARN", f"{mod_name}: repair blocked: {other}", C_ORANGE)
                 return
             reply = QMessageBox.question(
                 self,
-                "Безпечне відновлення симлінків",
-                f"Мод: {mod_name}\n\n"
-                f"Ідентичних копій: {len(copies)}. Відсутніх файлів: {len(missing)}.\n"
-                "Відновити символічні посилання для цих файлів?\n"
-                "Змінені або сторонні файли не будуть перезаписані.",
+                "Safe link repair",
+                f"Mod: {mod_name}\n\n"
+                f"Identical copies: {len(copies)}. Missing links: {len(missing)}.\n"
+                "Restore symbolic links for these files?\n"
+                "Modified or foreign files will never be overwritten.",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
             if reply != QMessageBox.Yes:
                 return
             fixed = self.mgr.repair_identical_copies(mod_name)
-            self.log("REPAIR", f"{mod_name}: відновлено симлінків: {len(fixed)}.", C_GREEN)
+            self.log("REPAIR", f"{mod_name}: links repaired: {len(fixed)}.", C_GREEN)
             self.refresh_table()
         except Exception as e:
             self.log("ERR", f"{mod_name}: {e}", C_RED)
 
     def verify_all_symlinks(self):
-        self.log("VERIFY", "Аудит стану файлів усіх активних модів...", C_CYAN)
+        self.log("VERIFY", "Checking all enabled mods for deployment issues...", C_CYAN)
         QApplication.processEvents()
         self.mod_health = self.mgr.health_snapshot()
         problems = 0
@@ -2015,50 +2014,50 @@ class CyberpunkModGUI(QMainWindow):
                 continue
             problems += 1
             if level == "error":
-                self.log("ERR", f"{mod_name}: помилка сканування: {health.get('error', 'невідома')}", C_RED)
+                self.log("ERR", f"{mod_name}: audit failed: {health.get('error', 'unknown')}", C_RED)
                 continue
             counts = {}
             for _, status in health["issues"]:
                 counts[status] = counts.get(status, 0) + 1
             descriptions = {
-                "identical_copy": "ідентичних копій",
-                "missing": "відсутніх посилань",
-                "missing_source": "відсутніх оригіналів",
-                "modified_file": "змінених файлів",
-                "foreign_link": "чужих посилань",
-                "unexpected_target": "невідомих об’єктів",
-                "backup_conflict": "конфліктів резервних копій",
+                "identical_copy": "identical copies",
+                "missing": "missing links",
+                "missing_source": "missing source files",
+                "modified_file": "modified files",
+                "foreign_link": "foreign links",
+                "unexpected_target": "unexpected files or directories",
+                "backup_conflict": "backup conflicts",
             }
             parts = [f"{count} {descriptions.get(status, status)}"
                      for status, count in counts.items()]
-            hint = "можна відновити через REPAIR" if level == "repairable" else "потрібна ручна перевірка"
+            hint = "safe repair available" if level == "repairable" else "manual review required"
             self.log("ISSUE", f"{mod_name}: {', '.join(parts)} — {hint}",
                      C_YELLOW if level == "repairable" else C_RED)
         if problems == 0:
-            self.log("OK", "Аудит пройдено: всі активні моди мають справні симлінки.", C_GREEN)
+            self.log("OK", "Integrity verified: all enabled mods have healthy deployment links.", C_GREEN)
         else:
-            self.log("VERIFY", f"Модів із проблемами: {problems}. Подробиці також у колонці СТАТУС.", C_ORANGE)
+            self.log("VERIFY", f"Mods with issues: {problems}. See the HEALTH column for details.", C_ORANGE)
         self.refresh_table(recheck=False)
 
     def launch_game(self):
-        self.log("EXEC", "Підготовка запуску через Steam (AppID 1091500)...", C_YELLOW)
+        self.log("EXEC", "Preparing Steam launch (AppID 1091500)...", C_YELLOW)
         pfx = find_proton_prefix(self.mgr.state_mgr.game_path)
         if pfx:
             ok, missing = check_proton_overrides(pfx)
             if not ok:
                 success, msg = configure_proton_overrides(pfx, missing)
                 if success:
-                    self.log("CORE", f"Автоматично активовано Proton DLL Overrides ({', '.join(missing)})", C_GREEN)
+                    self.log("CORE", f"Automatically configured Proton DLL overrides ({', '.join(missing)})", C_GREEN)
             else:
-                self.log("CORE", "Proton DLL Overrides (version.dll, winmm.dll) активні", C_GREEN)
+                self.log("CORE", "Proton DLL overrides (version.dll, winmm.dll) are active", C_GREEN)
 
-        self.log("INFO", "Аргументи запуску: <b>--launcher-skip -modded</b>", C_CYAN)
+        self.log("INFO", "Launch arguments: <b>--launcher-skip -modded</b>", C_CYAN)
         success, msg = launch_game_steam(self.mgr.state_mgr.game_path)
         if success:
             self.log("OK", f"{msg}", C_GREEN)
         else:
             self.log("ERROR", f"{msg}", C_RED)
-            QMessageBox.warning(self, "Помилка запуску", f"Не вдалося виконати команду запуску:\n{msg}")
+            QMessageBox.warning(self, "Launch failed", f"Failed to launch the game:\n{msg}")
 
     def show_steam_config_dialog(self):
         dialog = SteamConfigDialog(self.mgr.state_mgr.game_path, log_fn=self.log, parent=self)
