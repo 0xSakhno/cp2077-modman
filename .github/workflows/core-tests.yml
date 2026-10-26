@@ -3,6 +3,7 @@ name: Deployment and UI checks
 on:
   push:
     branches:
+      - main
       - fix/safe-mod-deployment
   pull_request:
   workflow_dispatch:
@@ -25,7 +26,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Check Python syntax
-        run: python -m compileall -q core gui.py tests
+        run: python -m compileall -q core main.py gui.py tests
+      - name: Check CLI help output
+        run: python main.py --help
       - name: Run filesystem deployment unit tests
         run: python -m unittest discover -s tests -v
 
