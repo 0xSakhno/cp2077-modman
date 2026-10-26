@@ -117,9 +117,46 @@ class DeploymentTests(unittest.TestCase):
         target.write_bytes(src.read_bytes())
         other = self.game / extra.relative_to(self.mods / "alpha")
         other.unlink()
-        with self.assertRaises(FileExistsError):
+        self.assertEqual(len(self.manager.repair_identical_copies("alpha")), 2)
+        self.assertTrue(target.is_symlink())
+        self.assertTrue(other.is_symlink())
+
+    def test_repair_blocks_missing_source(self):
+        src = self.mod("alpha")
+        extra = self.mod_extra("alpha", "archive/pc/mod/second.archive")
+        self.manager.enable_mod("alpha")
+        target = self.game / src.relative_to(self.mods / "alpha")
+        target.unlink()
+        target.write_bytes(src.read_bytes())
+        other = self.game / extra.relative_to(self.mods / "alpha")
+        other.unlink()
+        extra.unlink()
+        with self.assertRaises(FileNotFoundError):
             self.manager.repair_identical_copies("alpha")
         self.assertFalse(target.is_symlink())
+
+    def test_repair_mixed_rollback(self):
+        src = self.mod("alpha")
+        extra = self.mod_extra("alpha", "archive/pc/mod/second.archive")
+        self.manager.enable_mod("alpha")
+        target = self.game / src.relative_to(self.mods / "alpha")
+        target.unlink()
+        target.write_bytes(src.read_bytes())
+        other = self.game / extra.relative_to(self.mods / "alpha")
+        other.unlink()
+        original = linker.os.symlink
+        count = [0]
+        def fail_second(source, destination):
+            count[0] += 1
+            if count[0] == 2:
+                raise OSError("simulated link failure")
+            return original(source, destination)
+        with patch.object(linker.os, "symlink", side_effect=fail_second):
+            with self.assertRaises(OSError):
+                self.manager.repair_identical_copies("alpha")
+        self.assertFalse(target.is_symlink())
+        self.assertEqual(target.read_bytes(), src.read_bytes())
+        self.assertFalse(other.exists())
 
     def test_reject_path_traversal_name(self):
         for bad in ("../escape", "/absolute", "a/b", ".."):
@@ -155,6 +192,7 @@ class DeploymentTests(unittest.TestCase):
         path = self.mods / name / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("second")
+        return path
 
 
 if __name__ == "__main__":
