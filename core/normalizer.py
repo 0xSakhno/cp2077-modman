@@ -30,7 +30,7 @@ def _archive_library():
     """Bind the system libarchive used by bsdtar (ZIP, 7z, RAR, TAR, etc.)."""
     library_name = ctypes.util.find_library("archive")
     if not library_name:
-        raise RuntimeError("Не знайдено libarchive. Встановіть системний пакет libarchive.")
+        raise RuntimeError("libarchive was not found. Install the system libarchive package.")
     lib = ctypes.CDLL(library_name)
 
     signatures = {
@@ -58,14 +58,14 @@ def _archive_library():
 def _safe_member_path(name: str):
     """Return a safe POSIX relative path, or None for the archive root."""
     if not name or len(os.fsencode(name)) > MAX_ARCHIVE_PATH_BYTES:
-        raise ValueError("Порожній або занадто довгий шлях в архіві.")
+        raise ValueError("Archive entry has an empty or excessively long path.")
     if name.startswith(("/", "\\")) or "\\" in name:
-        raise ValueError(f"Небезпечний шлях в архіві: {name!r}")
+        raise ValueError(f"Unsafe archive path: {name!r}")
     if any(ord(char) < 32 or ord(char) == 127 for char in name):
-        raise ValueError(f"Керівні символи у шляху архіву: {name!r}")
+        raise ValueError(f"Archive path contains control characters: {name!r}")
     parts = name.split("/")
     if ".." in parts or (parts[0] and ":" in parts[0]):
-        raise ValueError(f"Шлях виходить за межі архіву: {name!r}")
+        raise ValueError(f"Archive path escapes the extraction directory: {name!r}")
     clean = tuple(part for part in parts if part not in ("", "."))
     return PurePosixPath(*clean) if clean else None
 
@@ -81,9 +81,9 @@ def extract_archive(archive_path: Path, extract_to: Path):
     archive_path = Path(archive_path)
     extract_to = Path(extract_to)
     if not archive_path.is_file():
-        raise FileNotFoundError(f"Архів не знайдено: {archive_path}")
+        raise FileNotFoundError(f"Archive not found: {archive_path}")
     if extract_to.is_symlink():
-        raise ValueError("Каталог розпакування не може бути символічним посиланням.")
+        raise ValueError("Extraction destination cannot be a symbolic link.")
     if extract_to.exists():
         shutil.rmtree(extract_to)
     extract_to.mkdir(parents=True)
@@ -94,13 +94,13 @@ def extract_archive(archive_path: Path, extract_to: Path):
         lib = _archive_library()
         reader = lib.archive_read_new()
         if not reader:
-            raise RuntimeError("Не вдалося створити libarchive reader.")
+            raise RuntimeError("Could not initialize libarchive reader.")
         lib.archive_read_support_filter_all(reader)
         lib.archive_read_support_format_all(reader)
         result = lib.archive_read_open_filename(reader, os.fsencode(archive_path), 10240)
         if result != 0:
             error = lib.archive_error_string(reader)
-            raise ValueError(f"Не вдалося відкрити архів: {os.fsdecode(error or b'unknown error')}")
+            raise ValueError(f"Unable to open archive: {os.fsdecode(error or b'unknown error')}")
 
         seen = set()
         entry_count = 0
@@ -113,14 +113,14 @@ def extract_archive(archive_path: Path, extract_to: Path):
                 break
             if status != 0:  # ARCHIVE_OK
                 error = lib.archive_error_string(reader)
-                raise ValueError(f"Пошкоджений архів: {os.fsdecode(error or b'unknown error')}")
+                raise ValueError(f"Invalid or corrupted archive: {os.fsdecode(error or b'unknown error')}")
 
             entry_count += 1
             if entry_count > MAX_ARCHIVE_ENTRIES:
-                raise ValueError("Архів перевищує ліміт кількості файлів.")
+                raise ValueError("Archive exceeds the maximum number of entries.")
             raw_name = lib.archive_entry_pathname(entry)
             if raw_name is None:
-                raise ValueError("Запис архіву не має назви.")
+                raise ValueError("Archive entry has no filename.")
             name = os.fsdecode(raw_name)
             relative = _safe_member_path(name)
 
@@ -128,15 +128,15 @@ def extract_archive(archive_path: Path, extract_to: Path):
             if (lib.archive_entry_symlink(entry) is not None
                     or lib.archive_entry_hardlink(entry) is not None
                     or kind not in (stat.S_IFREG, stat.S_IFDIR)):
-                raise ValueError(f"Заборонений тип файла або посилання в архіві: {name!r}")
+                raise ValueError(f"Unsupported or unsafe archive entry type: {name!r}")
             if relative is None:
                 if kind == stat.S_IFDIR:
                     continue  # Harmless root directory entry, e.g. './'
-                raise ValueError("Файл архіву не має відносного шляху.")
+                raise ValueError("Archive file entry has no relative path.")
 
             # Fail closed on duplicate paths rather than allowing overwrite.
             if relative in seen:
-                raise ValueError(f"Повторюваний шлях в архіві: {name!r}")
+                raise ValueError(f"Duplicate archive path: {name!r}")
             seen.add(relative)
 
             target = extract_to.joinpath(*relative.parts)
@@ -146,9 +146,9 @@ def extract_archive(archive_path: Path, extract_to: Path):
 
             announced_size = lib.archive_entry_size(entry)
             if announced_size > MAX_SINGLE_FILE_BYTES:
-                raise ValueError(f"Завеликий файл в архіві: {name!r}")
+                raise ValueError(f"Archive entry exceeds the per-file size limit: {name!r}")
             if announced_size >= 0 and total_bytes + announced_size > MAX_TOTAL_EXTRACTED_BYTES:
-                raise ValueError("Архів перевищує ліміт розпакованих даних.")
+                raise ValueError("Archive exceeds the total extraction size limit.")
 
             target.parent.mkdir(parents=True, exist_ok=True)
             file_bytes = 0
@@ -159,12 +159,12 @@ def extract_archive(archive_path: Path, extract_to: Path):
                         break
                     if count < 0:
                         error = lib.archive_error_string(reader)
-                        raise ValueError(f"Помилка читання файла {name!r}: {os.fsdecode(error or b'unknown error')}")
+                        raise ValueError(f"Failed to read archive entry {name!r}: {os.fsdecode(error or b'unknown error')}")
                     file_bytes += count
                     total_bytes += count
                     if (file_bytes > MAX_SINGLE_FILE_BYTES
                             or total_bytes > MAX_TOTAL_EXTRACTED_BYTES):
-                        raise ValueError("Архів перевищує ліміт розпакованих даних.")
+                        raise ValueError("Archive exceeds the total extraction size limit.")
                     output.write(chunk.raw[:count])
     except Exception:
         # Never expose partially extracted archives to the normaliser.
@@ -177,34 +177,34 @@ def extract_archive(archive_path: Path, extract_to: Path):
 
 def normalize_mod_structure(raw_dir: Path, target_mod_dir: Path):
     """
-    Аналізує розпакований архів і будує чисту ієрархію відносно кореня гри.
+    Builds a clean game-relative directory layout from an extracted archive.
     """
     if target_mod_dir.exists():
         shutil.rmtree(target_mod_dir)
     target_mod_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Шукаємо, чи є всередині вже готові кореневі папки (bin, r6, archive...)
+    # 1. Locate recognized game-root directories (bin, r6, archive, etc.)
     found_roots = []
     for path in raw_dir.rglob("*"):
         if path.is_dir() and path.name.lower() in KNOWN_ROOT_DIRS:
-            # Перевіряємо, чи ця папка не є підпапкою вже знайденого кореня
+            # Ignore directories nested inside another known root
             if not any(p in path.parents for p in found_roots):
                 found_roots.append(path)
 
     if found_roots:
-        # Якщо знайшли стандартні папки — переносимо їх відносно їхнього спільного батька
+        # Copy recognized directory trees into the normalized mod layout
         for root_folder in found_roots:
             dest = target_mod_dir / root_folder.name.lower()
             shutil.copytree(root_folder, dest, dirs_exist_ok=True)
         return
 
-    # 2. Якщо стандартних папок немає (автор закинув голі .archive або .yaml)
+    # 2. Route individual mod files when no known game-root directory exists
     for file_path in raw_dir.rglob("*"):
         if file_path.is_file():
             ext = file_path.suffix.lower()
             if ext in EXT_ROUTING:
                 rel_dir = EXT_ROUTING[ext]
-                # Для .reds та .yaml бажано зберегти підпапку з назвою мода
+                # Keep scripts and tweaks in a mod-specific subdirectory
                 if ext in {".reds", ".yaml", ".yml"}:
                     dest_dir = target_mod_dir / rel_dir / target_mod_dir.name
                 else:
