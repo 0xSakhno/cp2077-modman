@@ -2,7 +2,7 @@
 
 **A Linux-native, symlink-based mod manager for Cyberpunk 2077.**
 
-[![Deployment and UI checks](https://github.com/SanyaCatMeow/cp2077-modman/actions/workflows/core-tests.yml/badge.svg)](https://github.com/SanyaCatMeow/cp2077-modman/actions/workflows/core-tests.yml)
+[![Deployment and UI checks](https://github.com/0xSakhno/cp2077-modman/actions/workflows/core-tests.yml/badge.svg)](https://github.com/0xSakhno/cp2077-modman/actions/workflows/core-tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Manage your mods without copying an entire mod collection into the game directory. The application offers a Night City-inspired desktop interface, per-mod integrity checks, conflict-aware deployment and Steam/Proton integration.
@@ -41,7 +41,7 @@ Install the system **libarchive** runtime using your distribution's package mana
 Clone the project, then start it with the included **executable launcher**:
 
 ```bash
-git clone https://github.com/SanyaCatMeow/cp2077-modman.git
+git clone https://github.com/0xSakhno/cp2077-modman.git
 cd cp2077-modman
 ./run.sh
 ```
@@ -186,11 +186,11 @@ GitHub Actions runs core tests on Python 3.11 and 3.14 and a headless Qt GUI smo
 
 ## Contributing and project status
 
-Bug reports, Linux distribution compatibility results and pull requests are welcome through [GitHub Issues](https://github.com/SanyaCatMeow/cp2077-modman/issues).
+Bug reports, Linux distribution compatibility results and pull requests are welcome through [GitHub Issues](https://github.com/0xSakhno/cp2077-modman/issues).
 
 Please include your Linux distribution, Python/PySide6 versions, game patch, archive format and a sanitized log when reporting bugs. Do not upload proprietary game files or paid mod content.
 
-**License:** [MIT](LICENSE) — Copyright © 2026 SanyaCatMeow. You may use, study, modify, redistribute and even sell copies of this software, as long as the license and copyright notice are included. The software is provided without warranty.
+**License:** [MIT](LICENSE) — Copyright © 2026 0xSakhno. You may use, study, modify, redistribute and even sell copies of this software, as long as the license and copyright notice are included. The software is provided without warranty.
 
 ---
 
