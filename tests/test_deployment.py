@@ -239,6 +239,22 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(self.manager.inspect_reconcile("alpha")[0][1], "missing_source")
         self.assertEqual(self.manager.health_snapshot()["alpha"]["level"], "blocked")
 
+    def test_health_backup_conflict_blocks_repair_offer(self):
+        src = self.mod("alpha")
+        self.manager.enable_mod("alpha")
+        target = self.game / src.relative_to(self.mods / "alpha")
+        target.unlink()
+        target.write_bytes(src.read_bytes())
+        backup = target.with_suffix(target.suffix + ".vanilla_bak")
+        backup.write_text("original")
+        health = self.manager.health_snapshot()["alpha"]
+        self.assertEqual(health["level"], "blocked")
+        self.assertEqual(health["issues"][0][1], "backup_conflict")
+        with self.assertRaises(FileExistsError):
+            self.manager.repair_identical_copies("alpha")
+        self.assertEqual(target.read_bytes(), src.read_bytes())
+        self.assertEqual(backup.read_text(), "original")
+
     def test_health_snapshot_isolates_inspection_errors(self):
         self.mod("alpha")
         self.mod("beta", "archive/pc/mod/beta.archive")
