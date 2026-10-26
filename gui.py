@@ -1183,6 +1183,11 @@ class CyberpunkModGUI(QMainWindow):
         btn_verify.clicked.connect(self.verify_all_symlinks)
         toolbar.addWidget(btn_verify)
 
+        btn_repair = QPushButton("REPAIR МОДА")
+        btn_repair.setCursor(Qt.PointingHandCursor)
+        btn_repair.clicked.connect(self.repair_selected_mod)
+        toolbar.addWidget(btn_repair)
+
         btn_enable_all = QPushButton("УВІМКНУТИ ВСІ")
         btn_enable_all.setIcon(VectorIcon.create("check_all", C_GREEN, 14))
         btn_enable_all.setCursor(Qt.PointingHandCursor)
@@ -1623,6 +1628,40 @@ class CyberpunkModGUI(QMainWindow):
         if count:
             self.log("BATCH", f"Масово деактивовано модифікацій: <b>{count}</b>", C_YELLOW)
         self.refresh_table()
+
+
+    def repair_selected_mod(self):
+        mod_name = self.get_selected_mod_name()
+        if not mod_name:
+            self.log("WARN", "Спочатку виберіть модифікацію.", C_YELLOW)
+            return
+        try:
+            report = self.mgr.inspect_reconcile(mod_name)
+            if not report:
+                self.log("REPAIR", f"{mod_name}: всі симлінки справні.", C_GREEN)
+                return
+            copies = [rel for rel, status in report if status == "identical_copy"]
+            other = [(rel, status) for rel, status in report if status != "identical_copy"]
+            if other:
+                self.log("WARN", f"{mod_name}: відновлення заблоковано: {other}", C_ORANGE)
+                return
+            reply = QMessageBox.question(
+                self,
+                "Безпечне відновлення симлінків",
+                f"Мод: {mod_name}\\n\\n"
+                f"Виявлено {len(copies)} ідентичних звичайних файлів.\\n"
+                "Замінити їх на символічні посилання?\\n"
+                "Змінені або сторонні файли не будуть перезаписані.",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if reply != QMessageBox.Yes:
+                return
+            fixed = self.mgr.repair_identical_copies(mod_name)
+            self.log("REPAIR", f"{mod_name}: відновлено симлінків: {len(fixed)}.", C_GREEN)
+            self.refresh_table()
+        except Exception as e:
+            self.log("ERR", f"{mod_name}: {e}", C_RED)
 
     def verify_all_symlinks(self):
         self.log("VERIFY", "Перевірка цілісності симлінків у директорії гри...", C_CYAN)
