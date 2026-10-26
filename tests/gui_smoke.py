@@ -7,8 +7,11 @@ No real Steam or user mod directory is touched.
 
 import json
 import os
+import sys
 import tempfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 def main():
