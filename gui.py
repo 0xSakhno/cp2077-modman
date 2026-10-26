@@ -3,6 +3,7 @@ import os
 import sys
 import subprocess
 import re
+import re
 from datetime import datetime
 
 # Приглушуємо спам попереджень Qt Wayland textinput в терміналі
@@ -1660,12 +1661,21 @@ class CyberpunkModGUI(QMainWindow):
 
         mods = self.mgr.state_mgr.state.get("mods", {})
         search_text = self.search_input.text().strip().lower()
+        selected_filter = self.status_filter.currentData()
         game_path = self.mgr.state_mgr.game_path
 
         row_to_select = -1
 
-        for name, data in mods.items():
+        for name, data in sorted(mods.items(), key=lambda item: item[0].casefold()):
             if search_text and search_text not in name.lower():
+                continue
+            level = self.mod_health.get(name, {}).get("level", "disabled")
+            enabled = bool(data.get("enabled", False))
+            if selected_filter == "active" and not enabled:
+                continue
+            if selected_filter == "disabled" and enabled:
+                continue
+            if selected_filter == "issues" and level not in ("repairable", "blocked", "error"):
                 continue
 
             row = self.table.rowCount()
@@ -1715,11 +1725,14 @@ class CyberpunkModGUI(QMainWindow):
             ph_layout.addWidget(pill)
             self.table.setCellWidget(row, 1, pill_holder)
 
-            # Col 2: Mod Name
-            name_item = QTableWidgetItem(name)
-            name_item.setToolTip(health_tooltip)
+            # Col 2: human-readable title; exact original name stays in UserRole.
+            display_name, archive_metadata = self._display_mod_name(name)
+            name_item = QTableWidgetItem(display_name)
+            name_item.setToolTip(
+                f"{name}\n{archive_metadata}\n\n{health_tooltip}"
+            )
             name_item.setData(Qt.UserRole, name)
-            name_font = QFont("JetBrains Mono", 11)
+            name_font = QFont("Noto Sans", 10)
             name_font.setBold(enabled)
             name_item.setFont(name_font)
             name_item.setForeground(QColor(C_TEXT if enabled else C_TEXT_MUTED))
@@ -1761,6 +1774,12 @@ class CyberpunkModGUI(QMainWindow):
             self.table.setItem(row, 4, links_item)
 
         self._update_dashboard()
+        visible = self.table.rowCount()
+        self.lbl_list_count.setText(
+            f"{visible} ІЗ {len(mods)} МОДІВ" if visible != len(mods)
+            else f"{visible} МОДІВ У БІБЛІОТЕЦІ"
+        )
+        self._adapt_columns()
 
         if row_to_select >= 0:
             self.table.selectRow(row_to_select)
@@ -1769,7 +1788,24 @@ class CyberpunkModGUI(QMainWindow):
         else:
             self.details_panel.clear_details()
 
-    def filter_table(self, text: str):
+    @staticmethod
+    def _display_mod_name(name: str) -> tuple[str, str]:
+        """Hide Nexus export timestamps from the table, not from storage."""
+        match = re.match(
+            r"^(?P<title>.+?)\s+(?P<nexus>\d{2,7})\s+"
+            r"(?P<version>\d[\w.\-]*)\s+"
+            r"(?P<stamp>\d{4}-\d{2}-\d{2}T\S+)\s+\S+$",
+            name,
+        )
+        if match:
+            title = match.group("title")
+            version = match.group("version")
+            if version in title:
+                return title, f"Nexus #{match.group('nexus')}"
+            return f"{title}  ·  v{version}", f"Nexus #{match.group('nexus')}"
+        return name, "Локальна назва мода"
+
+    def filter_table(self, _value=None):
         self.refresh_table(recheck=False)
 
     def _on_selection_changed(self, row: int, col: int, prev_row: int, prev_col: int):
