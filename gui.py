@@ -1098,8 +1098,11 @@ class ModDetailsPanel(ChamferPanel):
     def _set_pill(self, text: str, color: str, filled: bool):
         while self.status_pill_layout.count():
             child = self.status_pill_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+            widget = child.widget()
+            if widget:
+                widget.hide()
+                widget.setParent(None)
+                widget.deleteLater()
         self.status_pill_layout.addWidget(StatusPill(text, color, filled))
 
     def update_details(self, mod_name: str, mod_data: dict, game_path=None, mods_state=None, health=None):
@@ -1585,8 +1588,11 @@ class CyberpunkModGUI(QMainWindow):
     def _update_game_version(self):
         while self.version_pill_layout.count():
             child = self.version_pill_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+            widget = child.widget()
+            if widget:
+                widget.hide()
+                widget.setParent(None)
+                widget.deleteLater()
 
         gp = self.mgr.state_mgr.game_path
         gv = get_game_version(gp)
