@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QStatusBar, QDialog, QComboBox, QProgressBar, QScrollArea
 )
 from PySide6.QtCore import (
-    Qt, QSize, Signal, QPointF, QRectF
+    Qt, QSize, Signal, QPointF, QRectF, QTimer
 )
 from PySide6.QtGui import (
     QColor, QFont, QIcon, QPainter, QBrush, QPen, QPainterPath,
@@ -905,6 +905,8 @@ class ModDetailsPanel(ChamferPanel):
         shell.setSpacing(0)
 
         scroller = QScrollArea()
+        self.scroller = scroller
+        self._inspected_mod_name = None
         scroller.setWidgetResizable(True)
         scroller.setFrameShape(QFrame.NoFrame)
         scroller.setStyleSheet(
@@ -1107,6 +1109,11 @@ class ModDetailsPanel(ChamferPanel):
         pill.show()
 
     def update_details(self, mod_name: str, mod_data: dict, game_path=None, mods_state=None, health=None):
+        # Keep the selected mod's title visible when switching rows. Qt may
+        # otherwise scroll to a focused descendant as the inspector relayouts.
+        if mod_name != self._inspected_mod_name:
+            self._inspected_mod_name = mod_name
+            QTimer.singleShot(0, lambda: self.scroller.verticalScrollBar().setValue(0))
         display_name, archive_metadata = compact_mod_identity(mod_name)
         self.lbl_name.setText(display_name)
         self.lbl_name.setToolTip(mod_name)
@@ -1207,6 +1214,9 @@ class ModDetailsPanel(ChamferPanel):
             self.lbl_conflicts.setText("\n".join(others))
 
     def clear_details(self):
+        self._inspected_mod_name = None
+        if hasattr(self, "scroller"):
+            QTimer.singleShot(0, lambda: self.scroller.verticalScrollBar().setValue(0))
         self.lbl_name.setText("NO MOD SELECTED")
         self.lbl_mod_meta.setText("")
         self._set_pill("AWAITING SELECTION", C_TEXT_DIM, False)
@@ -1619,7 +1629,7 @@ class CyberpunkModGUI(QMainWindow):
 
         if installed:
             names = [get_framework_info(fid).name for fid in installed]
-            self.log("CORE", f"Enabled базові фреймворки: <b>{', '.join(names)}</b>", C_GREEN)
+            self.log("CORE", f"Active core frameworks: <b>{', '.join(names)}</b>", C_GREEN)
         else:
             self.log("WARN", "No core frameworks (CET / RED4ext / Redscript) detected.", C_ORANGE)
 
