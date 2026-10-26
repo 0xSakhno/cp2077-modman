@@ -1,6 +1,8 @@
 import os
 import shutil
+import tempfile
 from pathlib import Path
+
 from core.config import MODS_DIR, TEMP_DIR, StateManager
 from core.normalizer import extract_archive, normalize_mod_structure
 
@@ -9,107 +11,169 @@ class ModManager:
     def __init__(self):
         self.state_mgr = StateManager()
 
+    @staticmethod
+    def _validate_name(name: str) -> str:
+        if not name or name in {".", ".."} or Path(name).name != name or "/" in name or "\\" in name:
+            raise ValueError("Invalid mod name: use a single directory name.")
+        return name
+
+    @staticmethod
+    def _files(mod_dir: Path):
+        # Never deploy links embedded in untrusted archives.
+        for path in mod_dir.rglob("*"):
+            if path.is_symlink():
+                raise ValueError(f"Symlinks inside mods are not supported: {path}")
+            if path.is_file():
+                yield path
+
+    @staticmethod
+    def _target(game_dir: Path, rel: Path) -> Path:
+        root = game_dir.resolve()
+        target = root / rel
+        # Parents must not redirect an operation outside the game directory.
+        if not target.parent.resolve().is_relative_to(root):
+            raise ValueError(f"Target escapes game directory: {rel}")
+        return target
+
     def install_from_archive(self, archive_path: str, custom_name: str = None):
-        arch = Path(archive_path).resolve()
-        if not arch.exists():
-            raise FileNotFoundError(f"Архів не знайдено: {arch}")
+        arch = Path(archive_path).expanduser().resolve()
+        if not arch.is_file():
+            raise FileNotFoundError(f"Archive not found: {arch}")
+        name = self._validate_name(custom_name or arch.stem)
+        mods = self.state_mgr.state["mods"]
+        final_dir = MODS_DIR / name
+        if name in mods or final_dir.exists():
+            raise FileExistsError(f"Mod already installed: {name}")
 
-        mod_name = custom_name or arch.stem
-        raw_extract_dir = TEMP_DIR / mod_name
-        final_mod_dir = MODS_DIR / mod_name
+        TEMP_DIR.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="install-", dir=TEMP_DIR) as temp:
+            workspace = Path(temp)
+            raw_dir = workspace / "extracted"
+            prepared_dir = workspace / "normalized"
+            extract_archive(arch, raw_dir)
+            normalize_mod_structure(raw_dir, prepared_dir)
+            files = list(self._files(prepared_dir))
+            if not files:
+                raise ValueError("No supported mod files found in archive.")
+            # Reject accidental traversal and conflicting files before publishing the mod.
+            self._preflight(name, [(f.relative_to(prepared_dir), f) for f in files])
+            prepared_dir.rename(final_dir)
 
-        print(f"[*] Розпакування '{arch.name}'...")
-        extract_archive(arch, raw_extract_dir)
-
-        print(f"[*] Нормалізація структури для '{mod_name}'...")
-        normalize_mod_structure(raw_extract_dir, final_mod_dir)
-        shutil.rmtree(raw_extract_dir, ignore_errors=True)
-
-        # Перевірка, чи мод не порожній після нормалізації
-        if not any(final_mod_dir.rglob("*")):
-            shutil.rmtree(final_mod_dir, ignore_errors=True)
-            raise ValueError("Не вдалося розпізнати структуру мода у цьому архіві.")
-
-        self.state_mgr.state["mods"][mod_name] = {"enabled": False, "links": []}
+        mods[name] = {"enabled": False, "links": []}
         self.state_mgr.save()
-        print(f"[+] Мод '{mod_name}' успішно додано в базу. Увімкнення...")
-        self.enable_mod(mod_name)
+        try:
+            self.enable_mod(name)
+        except Exception:
+            mods.pop(name, None)
+            self.state_mgr.save()
+            shutil.rmtree(final_dir)
+            raise
+
+    def _preflight(self, name: str, entries):
+        game_dir = self.state_mgr.game_path
+        if not game_dir.is_dir():
+            raise FileNotFoundError(f"Game directory not found: {game_dir}")
+
+        mods = self.state_mgr.state["mods"]
+        occupied = {
+            path: other_name
+            for other_name, data in mods.items()
+            if other_name != name and data.get("enabled")
+            for path in data.get("links", [])
+        }
+        for rel, source in entries:
+            target = self._target(game_dir, rel)
+            owner = occupied.get(str(rel))
+            if owner:
+                raise FileExistsError(f"File conflict with mod '{owner}': {rel}")
+            if target.is_symlink():
+                # Refuse unmanaged or other mods' links rather than silently unlinking.
+                if not target.resolve().is_relative_to(MODS_DIR.resolve()):
+                    raise FileExistsError(f"Unmanaged symlink at {rel}")
+                if not target.resolve().is_relative_to(source.parent.parent.resolve()) and target.resolve() != source.resolve():
+                    raise FileExistsError(f"Existing symlink at {rel}")
+                if target.resolve() != source.resolve():
+                    raise FileExistsError(f"Existing symlink at {rel}")
+            backup = target.with_suffix(target.suffix + ".vanilla_bak")
+            if target.exists() and backup.exists() and not target.is_symlink():
+                raise FileExistsError(f"Existing backup prevents safe deployment: {backup}")
+            if backup.is_symlink():
+                raise FileExistsError(f"Unsafe backup symlink: {backup}")
 
     def enable_mod(self, mod_name: str):
         mods = self.state_mgr.state["mods"]
         if mod_name not in mods:
-            raise KeyError(f"Мод '{mod_name}' не знайдено.")
+            raise KeyError(f"Mod not found: {mod_name}")
         if mods[mod_name]["enabled"]:
-            print(f"[!] Мод '{mod_name}' вже увімкнений.")
             return
 
-        game_dir = self.state_mgr.game_path
-        if not game_dir.exists():
-            raise FileNotFoundError(f"Папка гри не існує: {game_dir}. Вкажіть правильний шлях.")
-
         mod_dir = MODS_DIR / mod_name
-        created_links = []
-
-        for src_file in mod_dir.rglob("*"):
-            if src_file.is_file():
-                rel_path = src_file.relative_to(mod_dir)
-                target_file = game_dir / rel_path
-
-                target_file.parent.mkdir(parents=True, exist_ok=True)
-
-                # Якщо там вже є старий симлінк (конфлікт з іншим модом) — перезаписуємо
-                if target_file.is_symlink():
-                    target_file.unlink()
-                elif target_file.exists():
-                    # Якщо це оригінальний файл гри — робимо бекап
-                    backup = target_file.with_suffix(target_file.suffix + ".vanilla_bak")
-                    if not backup.exists():
-                        target_file.rename(backup)
-
-                os.symlink(src_file, target_file)
-                created_links.append(str(rel_path))
+        entries = [(p.relative_to(mod_dir), p) for p in self._files(mod_dir)]
+        self._preflight(mod_name, entries)
+        game_dir = self.state_mgr.game_path
+        completed = []
+        try:
+            for rel, source in entries:
+                target = self._target(game_dir, rel)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                backup = target.with_suffix(target.suffix + ".vanilla_bak")
+                had_original = target.exists() and not target.is_symlink()
+                if had_original:
+                    target.rename(backup)
+                try:
+                    os.symlink(source, target)
+                except Exception:
+                    if had_original:
+                        backup.rename(target)
+                    raise
+                completed.append((target, source, backup if had_original else None))
+        except Exception:
+            for target, source, backup in reversed(completed):
+                if target.is_symlink() and target.resolve() == source.resolve():
+                    target.unlink()
+                if backup is not None and backup.exists():
+                    backup.rename(target)
+            raise
 
         mods[mod_name]["enabled"] = True
-        mods[mod_name]["links"] = created_links
+        mods[mod_name]["links"] = [str(rel) for rel, _ in entries]
         self.state_mgr.save()
-        print(f"[+] Мод '{mod_name}' увімкнено ({len(created_links)} файлів злінковано).")
 
     def disable_mod(self, mod_name: str):
         mods = self.state_mgr.state["mods"]
         if mod_name not in mods or not mods[mod_name]["enabled"]:
-            print(f"[!] Мод '{mod_name}' не активний.")
             return
-
         game_dir = self.state_mgr.game_path
+        mod_dir = MODS_DIR / mod_name
+
+        # Validate everything before removing anything.
+        targets = []
         for rel_str in mods[mod_name]["links"]:
-            target_file = game_dir / rel_str
-            if target_file.is_symlink():
-                target_file.unlink()
+            rel = Path(rel_str)
+            target = self._target(game_dir, rel)
+            source = mod_dir / rel
+            if target.is_symlink() and target.resolve() != source.resolve():
+                raise FileExistsError(f"Link is now owned by another mod: {rel}")
+            if target.exists() and not target.is_symlink():
+                raise FileExistsError(f"Target has been replaced by a regular file: {rel}")
+            targets.append((target, source))
 
-                # Відновлюємо бекап оригінального файлу, якщо він був
-                backup = target_file.with_suffix(target_file.suffix + ".vanilla_bak")
+        for target, source in targets:
+            if target.is_symlink() and target.resolve() == source.resolve():
+                target.unlink()
+                backup = target.with_suffix(target.suffix + ".vanilla_bak")
                 if backup.exists():
-                    backup.rename(target_file)
-
-                # Підчищаємо порожні папки в грі вгору по дереву
-                parent = target_file.parent
-                while parent != game_dir and parent.exists() and not any(parent.iterdir()):
-                    parent.rmdir()
-                    parent = parent.parent
-
+                    backup.rename(target)
         mods[mod_name]["enabled"] = False
         mods[mod_name]["links"] = []
         self.state_mgr.save()
-        print(f"[-] Мод '{mod_name}' вимкнено, симлінки видалено.")
 
     def remove_mod(self, mod_name: str):
-        if mod_name not in self.state_mgr.state["mods"]:
-            raise KeyError(f"Мод '{mod_name}' не знайдено.")
-
-        if self.state_mgr.state["mods"][mod_name]["enabled"]:
+        mods = self.state_mgr.state["mods"]
+        if mod_name not in mods:
+            raise KeyError(f"Mod not found: {mod_name}")
+        if mods[mod_name]["enabled"]:
             self.disable_mod(mod_name)
-
-        shutil.rmtree(MODS_DIR / mod_name, ignore_errors=True)
-        del self.state_mgr.state["mods"][mod_name]
+        shutil.rmtree(MODS_DIR / mod_name)
+        del mods[mod_name]
         self.state_mgr.save()
-        print(f"[x] Мод '{mod_name}' повністю видалено з диска.")
