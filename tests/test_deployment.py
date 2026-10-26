@@ -108,7 +108,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(target.read_bytes(), src.read_bytes())
         self.assertFalse(target.is_symlink())
 
-    def test_repair_refuses_when_other_target_missing(self):
+    def test_repair_restores_identical_copy_and_missing_target(self):
         src = self.mod("alpha")
         extra = self.mod_extra("alpha", "archive/pc/mod/second.archive")
         self.manager.enable_mod("alpha")
@@ -177,6 +177,84 @@ class DeploymentTests(unittest.TestCase):
         self.assertFalse(target.is_symlink())
         self.assertEqual(target.read_bytes(), src.read_bytes())
         self.assertFalse(other.exists())
+
+    def test_health_snapshot_disabled_and_healthy(self):
+        self.mod("alpha")
+        self.assertEqual(self.manager.health_snapshot()["alpha"]["level"], "disabled")
+        self.manager.enable_mod("alpha")
+        self.assertEqual(self.manager.health_snapshot()["alpha"],
+                         {"level": "healthy", "issues": []})
+
+    def test_health_snapshot_repairable_missing_and_identical_copy(self):
+        src = self.mod("alpha")
+        extra = self.mod_extra("alpha", "archive/pc/mod/extra.archive")
+        self.manager.enable_mod("alpha")
+        first = self.game / src.relative_to(self.mods / "alpha")
+        second = self.game / extra.relative_to(self.mods / "alpha")
+        first.unlink()
+        first.write_bytes(src.read_bytes())
+        second.unlink()
+        health = self.manager.health_snapshot()["alpha"]
+        self.assertEqual(health["level"], "repairable")
+        self.assertEqual({status for _, status in health["issues"]},
+                         {"identical_copy", "missing"})
+
+    def test_health_snapshot_modified_file_blocks_repair(self):
+        src = self.mod("alpha")
+        self.manager.enable_mod("alpha")
+        target = self.game / src.relative_to(self.mods / "alpha")
+        target.unlink()
+        target.write_text("changed by game")
+        health = self.manager.health_snapshot()["alpha"]
+        self.assertEqual(health["level"], "blocked")
+        self.assertEqual(health["issues"][0][1], "modified_file")
+
+    def test_health_snapshot_detects_foreign_link(self):
+        src = self.mod("alpha")
+        self.manager.enable_mod("alpha")
+        target = self.game / src.relative_to(self.mods / "alpha")
+        target.unlink()
+        foreign = self.root / "other"
+        foreign.write_text("foreign")
+        target.symlink_to(foreign)
+        self.assertEqual(self.manager.health_snapshot()["alpha"]["level"], "blocked")
+        self.assertEqual(self.manager.inspect_reconcile("alpha")[0][1], "foreign_link")
+
+    def test_health_snapshot_detects_missing_source(self):
+        src = self.mod("alpha")
+        self.manager.enable_mod("alpha")
+        src.unlink()
+        self.assertEqual(self.manager.inspect_reconcile("alpha")[0][1], "missing_source")
+        self.assertEqual(self.manager.health_snapshot()["alpha"]["level"], "blocked")
+        with self.assertRaises(FileExistsError):
+            self.manager.repair_identical_copies("alpha")
+
+    def test_health_snapshot_detects_replaced_source_symlink(self):
+        src = self.mod("alpha")
+        self.manager.enable_mod("alpha")
+        src.unlink()
+        replacement = self.root / "replacement"
+        replacement.write_text("new")
+        src.symlink_to(replacement)
+        self.assertEqual(self.manager.inspect_reconcile("alpha")[0][1], "missing_source")
+        self.assertEqual(self.manager.health_snapshot()["alpha"]["level"], "blocked")
+
+    def test_health_snapshot_isolates_inspection_errors(self):
+        self.mod("alpha")
+        self.mod("beta", "archive/pc/mod/beta.archive")
+        self.manager.enable_mod("alpha")
+        self.manager.enable_mod("beta")
+        old = self.manager.inspect_reconcile
+
+        def broken(name):
+            if name == "alpha":
+                raise OSError("read error")
+            return old(name)
+
+        with patch.object(self.manager, "inspect_reconcile", side_effect=broken):
+            snapshot = self.manager.health_snapshot()
+        self.assertEqual(snapshot["alpha"]["level"], "error")
+        self.assertEqual(snapshot["beta"]["level"], "healthy")
 
     def test_reject_path_traversal_name(self):
         for bad in ("../escape", "/absolute", "a/b", ".."):
