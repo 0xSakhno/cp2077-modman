@@ -248,30 +248,30 @@ class LinkIssue:
     """A single broken or invalid symlink."""
     mod_name: str
     rel_path: str
-    issue: str  # "broken", "not_symlink", "missing"
+    issue: str  # "foreign_link", "missing_source", "not_symlink", "missing"
 
 
 def verify_symlinks(mods_state: dict, game_path: Path) -> list[LinkIssue]:
-    """
-    Verify that all symlinks of enabled mods are intact.
-    Returns a list of issues found.
+    """Read-only check of link ownership and existence for active mods.
+
+    For detailed repair eligibility use ModManager.health_snapshot().
     """
     issues: list[LinkIssue] = []
-
     for mod_name, data in mods_state.items():
         if not data.get("enabled"):
             continue
         for rel_path in data.get("links", []):
             target = game_path / rel_path
-            if not target.exists() and not target.is_symlink():
-                issues.append(LinkIssue(mod_name, rel_path, "missing"))
-            elif target.is_symlink():
-                if not target.resolve().exists():
-                    issues.append(LinkIssue(mod_name, rel_path, "broken"))
-            else:
-                # File exists but is not a symlink (game was updated and overwrote?)
+            source = MODS_DIR / mod_name / rel_path
+            if target.is_symlink():
+                if target.resolve() != source.resolve():
+                    issues.append(LinkIssue(mod_name, rel_path, "foreign_link"))
+                elif source.is_symlink() or not source.is_file():
+                    issues.append(LinkIssue(mod_name, rel_path, "missing_source"))
+            elif target.exists():
                 issues.append(LinkIssue(mod_name, rel_path, "not_symlink"))
-
+            else:
+                issues.append(LinkIssue(mod_name, rel_path, "missing"))
     return issues
 
 
