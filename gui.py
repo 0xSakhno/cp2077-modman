@@ -21,7 +21,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QColor, QFont, QIcon, QPainter, QBrush, QPen, QPainterPath,
     QDragEnterEvent, QDropEvent, QDragLeaveEvent, QKeySequence,
-    QShortcut, QFontDatabase, QPixmap, QPolygonF
+    QShortcut, QFontDatabase, QFontMetrics, QPixmap, QPolygonF
 )
 
 from core.linker import ModManager
@@ -37,28 +37,28 @@ from core.proton import (
 )
 
 # ─────────────────────────── Color Palette ───────────────────────────
-C_BG_VOID      = "#060609"
-C_BG_DEEP      = "#090a10"
-C_BG_MAIN      = "#0d0f17"
-C_BG_PANEL     = "#11141f"
-C_BG_CARD      = "#161a29"
-C_BG_ELEVATED  = "#1c2135"
-C_BG_HOVER     = "#242b45"
+C_BG_VOID      = "#080b11"
+C_BG_DEEP      = "#0a0e16"
+C_BG_MAIN      = "#0e1420"
+C_BG_PANEL     = "#121a27"
+C_BG_CARD      = "#1a2534"
+C_BG_ELEVATED  = "#243044"
+C_BG_HOVER     = "#2a3a4d"
 
-C_CYAN         = "#00f0ff"
+C_CYAN         = "#37dce8"
 C_CYAN_DIM     = "#006b73"
-C_YELLOW       = "#fcee0a"
+C_YELLOW       = "#ffe04b"
 C_YELLOW_DIM   = "#7a7300"
-C_RED          = "#ff003c"
+C_RED          = "#ff5a76"
 C_RED_DIM      = "#590015"
-C_GREEN        = "#00ff88"
+C_GREEN        = "#46e5a2"
 C_GREEN_DIM    = "#006636"
-C_ORANGE       = "#ff9500"
-C_TEXT         = "#e6e8f0"
-C_TEXT_MUTED   = "#8c92ac"
-C_TEXT_DIM     = "#525870"
-C_BORDER       = "#22273d"
-C_BORDER_LIGHT = "#2f3654"
+C_ORANGE       = "#ffb35e"
+C_TEXT         = "#eef3fb"
+C_TEXT_MUTED   = "#b0bdd2"
+C_TEXT_DIM     = "#7e8ca3"
+C_BORDER       = "#273347"
+C_BORDER_LIGHT = "#3c4d63"
 
 
 # ─────────────────────── Custom Vector Icons ─────────────────────────
@@ -256,16 +256,16 @@ class MetricCard(ChamferPanel):
     """Top telemetry card displaying live counter and subtitle."""
     def __init__(self, title: str, value: str, subtext: str, accent: str = C_CYAN, parent=None):
         super().__init__(accent_color=accent, bg_color=C_BG_PANEL, cut=9, parent=parent)
-        self.setMinimumHeight(74)
-        self.setMaximumHeight(82)
+        self.setMinimumHeight(88)
+        self.setMaximumHeight(100)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 10, 14, 8)
-        layout.setSpacing(2)
+        layout.setContentsMargins(18, 14, 18, 12)
+        layout.setSpacing(6)
 
         self.lbl_title = QLabel(title)
         self.lbl_title.setStyleSheet(
-            f"color: {C_TEXT_MUTED}; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;"
+            f"color: {C_TEXT_MUTED}; font-size: 11px; font-weight: 750; letter-spacing: 0.9px;"
         )
         layout.addWidget(self.lbl_title)
 
@@ -273,7 +273,7 @@ class MetricCard(ChamferPanel):
         row.setSpacing(8)
         self.lbl_value = QLabel(value)
         self.lbl_value.setStyleSheet(
-            f"color: {C_TEXT}; font-size: 21px; font-weight: 800;"
+            f"color: {C_TEXT}; font-size: 29px; font-weight: 800;"
         )
         row.addWidget(self.lbl_value)
 
@@ -281,7 +281,7 @@ class MetricCard(ChamferPanel):
 
         self.lbl_sub = QLabel(subtext)
         self.lbl_sub.setStyleSheet(
-            f"color: {accent}; font-size: 10px; font-weight: 700; letter-spacing: 0.8px;"
+            f"color: {accent}; font-size: 11px; font-weight: 700;"
         )
         row.addWidget(self.lbl_sub, alignment=Qt.AlignBottom)
 
@@ -294,7 +294,7 @@ class MetricCard(ChamferPanel):
         if accent is not None:
             self.set_accent(accent)
             self.lbl_sub.setStyleSheet(
-                f"color: {accent}; font-size: 10px; font-weight: 700; letter-spacing: 0.8px;"
+                f"color: {accent}; font-size: 11px; font-weight: 700;"
             )
 
 
@@ -306,7 +306,7 @@ class CyberToggle(QWidget):
         super().__init__(parent)
         self._checked = checked
         self._hovered = False
-        self.setFixedSize(46, 22)
+        self.setFixedSize(48, 24)
         self.setCursor(Qt.PointingHandCursor)
 
     def isChecked(self) -> bool:
@@ -375,11 +375,12 @@ class StatusPill(QWidget):
         self._text = text
         self._color = QColor(color_hex)
         self._filled = filled_dot
-        self.setFixedHeight(22)
+        self.setFixedHeight(26)
 
-        fm = self.fontMetrics()
-        tw = fm.horizontalAdvance(text)
-        self.setFixedWidth(max(tw + 32, 74))
+        font = QFont("DejaVu Sans Mono", 9)
+        font.setBold(True)
+        tw = QFontMetrics(font).horizontalAdvance(text)
+        self.setFixedWidth(max(tw + 31, 88))
 
     def paintEvent(self, event):
         p = QPainter(self)
@@ -409,7 +410,7 @@ class StatusPill(QWidget):
 
         # Text
         p.setPen(self._color)
-        font = QFont("JetBrains Mono", 9)
+        font = QFont("DejaVu Sans Mono", 9)
         font.setBold(True)
         p.setFont(font)
         p.drawText(QRectF(19, 0, w - 22, h), Qt.AlignVCenter | Qt.AlignLeft, self._text)
@@ -641,205 +642,233 @@ CYBERPUNK_QSS = f"""
 QMainWindow, QWidget#central {{
     background-color: {C_BG_VOID};
     color: {C_TEXT};
-    font-family: 'JetBrains Mono', 'Fira Code', 'Noto Sans Mono', monospace;
+    font-family: 'Noto Sans', 'DejaVu Sans', sans-serif;
+    font-size: 13px;
 }}
 QToolTip {{
     background-color: {C_BG_ELEVATED};
-    color: {C_CYAN};
+    color: {C_TEXT};
     border: 1px solid {C_CYAN_DIM};
-    padding: 6px 10px;
-    font-size: 11px;
+    padding: 9px 12px;
+    font-size: 12px;
 }}
-
-/* ═══════════════════════════ HEADER ═══════════════════════════ */
 QFrame#headerBar {{
     background-color: {C_BG_DEEP};
     border-bottom: 1px solid {C_BORDER_LIGHT};
 }}
 QLabel#headerTitle {{
     color: {C_TEXT};
-    font-size: 17px;
+    font-family: 'DejaVu Sans Mono', monospace;
+    font-size: 19px;
     font-weight: 800;
-    letter-spacing: 2.5px;
+    letter-spacing: 1.0px;
 }}
 QLabel#headerSubtitle {{
     color: {C_CYAN};
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 2px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
 }}
-
-/* ═══════════════════════════ INPUTS ═══════════════════════════ */
+QLabel#sectionTitle {{
+    color: {C_TEXT};
+    font-size: 15px;
+    font-weight: 800;
+}}
+QLabel#sectionMeta {{
+    color: {C_TEXT_DIM};
+    font-family: 'DejaVu Sans Mono', monospace;
+    font-size: 11px;
+}}
 QLineEdit {{
     background-color: {C_BG_DEEP};
     border: 1px solid {C_BORDER_LIGHT};
-    border-radius: 3px;
+    border-radius: 5px;
     color: {C_TEXT};
-    padding: 7px 12px;
-    font-size: 12px;
+    padding: 9px 12px;
+    font-size: 13px;
     selection-background-color: {C_CYAN_DIM};
 }}
+QLineEdit:hover {{ border-color: {C_TEXT_DIM}; }}
 QLineEdit:focus {{
     border: 1px solid {C_CYAN};
     background-color: {C_BG_MAIN};
 }}
-
-/* ═══════════════════════════ BUTTONS ══════════════════════════ */
+QComboBox {{
+    color: {C_TEXT};
+    background-color: {C_BG_CARD};
+    border: 1px solid {C_BORDER_LIGHT};
+    border-radius: 5px;
+    padding: 9px 15px;
+    min-width: 145px;
+    font-size: 12px;
+}}
+QComboBox:hover {{ border-color: {C_CYAN}; }}
+QComboBox::drop-down {{ border: none; width: 24px; }}
+QComboBox QAbstractItemView {{
+    color: {C_TEXT};
+    background-color: {C_BG_PANEL};
+    border: 1px solid {C_BORDER_LIGHT};
+    selection-background-color: {C_BG_HOVER};
+    padding: 4px;
+}}
 QPushButton {{
     background-color: {C_BG_CARD};
     border: 1px solid {C_BORDER_LIGHT};
-    color: {C_TEXT};
-    padding: 7px 14px;
+    color: {C_TEXT_MUTED};
+    padding: 10px 14px;
     font-weight: 700;
-    font-size: 11px;
-    border-radius: 3px;
-    letter-spacing: 0.8px;
+    font-size: 12px;
+    border-radius: 5px;
 }}
 QPushButton:hover {{
     background-color: {C_BG_HOVER};
     border-color: {C_CYAN};
-    color: {C_CYAN};
+    color: {C_TEXT};
 }}
 QPushButton:pressed {{
     background-color: {C_CYAN_DIM};
     color: #ffffff;
 }}
-
+QPushButton:disabled {{
+    color: {C_TEXT_DIM};
+    border-color: {C_BORDER};
+}}
 QPushButton#btnPrimary {{
-    background-color: {C_CYAN};
-    border: 1px solid {C_CYAN};
-    color: #050608;
+    background-color: {C_YELLOW};
+    border: 1px solid {C_YELLOW};
+    color: #0b1017;
     font-weight: 800;
 }}
 QPushButton#btnPrimary:hover {{
-    background-color: #4df5ff;
-    border-color: #4df5ff;
+    background-color: #ffed88;
+    border-color: #ffed88;
 }}
-
 QPushButton#btnYellow {{
-    background-color: rgba(252, 238, 10, 0.08);
-    border: 1px solid {C_YELLOW};
+    background-color: #2d2a17;
+    border: 1px solid {C_YELLOW_DIM};
     color: {C_YELLOW};
 }}
 QPushButton#btnYellow:hover {{
-    background-color: {C_YELLOW};
-    color: #050608;
+    border-color: {C_YELLOW};
+    background-color: #3b3519;
 }}
-
 QPushButton#btnDanger {{
-    background-color: rgba(255, 0, 60, 0.08);
-    border: 1px solid {C_RED};
+    background-color: #281923;
+    border: 1px solid {C_RED_DIM};
     color: {C_RED};
 }}
 QPushButton#btnDanger:hover {{
-    background-color: {C_RED};
-    color: #ffffff;
+    border-color: {C_RED};
+    background-color: #3b1d2a;
 }}
-
 QPushButton#btnSteamCfg {{
-    background-color: #11141f;
-    border: 1px solid {C_CYAN};
-    color: {C_CYAN};
-    font-size: 11px;
-    font-weight: 800;
-    padding: 8px 14px;
-    letter-spacing: 0.8px;
-    border-radius: 3px;
+    background-color: transparent;
+    border: 1px solid {C_BORDER_LIGHT};
+    color: {C_TEXT_MUTED};
 }}
 QPushButton#btnSteamCfg:hover {{
-    background-color: #1c2135;
-    border-color: {C_YELLOW};
-    color: {C_YELLOW};
+    border-color: {C_CYAN};
+    color: {C_CYAN};
 }}
-
 QPushButton#btnLaunch {{
     background-color: {C_YELLOW};
     border: 1px solid {C_YELLOW};
-    color: #050608;
-    font-size: 12px;
-    font-weight: 900;
-    padding: 9px 20px;
-    letter-spacing: 1.5px;
+    color: #080c13;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 11px 20px;
 }}
 QPushButton#btnLaunch:hover {{
-    background-color: #fff559;
-    border-color: #fff559;
+    background-color: #fff195;
+    border-color: #fff195;
 }}
-
-/* ═══════════════════════════ TABLE ════════════════════════════ */
 QTableWidget {{
     background-color: {C_BG_DEEP};
     border: 1px solid {C_BORDER};
-    border-radius: 3px;
+    border-radius: 6px;
     gridline-color: transparent;
-    selection-background-color: rgba(0, 240, 255, 22);
-    selection-color: #ffffff;
-    outline: 0;
-    font-size: 12px;
+    selection-background-color: #163b43;
+    selection-color: {C_TEXT};
+    outline: none;
+    font-size: 13px;
     alternate-background-color: {C_BG_MAIN};
 }}
 QTableWidget::item {{
-    padding: 6px 10px;
-    border-bottom: 1px solid #131624;
+    padding: 8px 10px;
+    border-bottom: 1px solid #1b2837;
 }}
+QTableWidget::item:hover {{ background-color: #182a39; }}
 QTableWidget::item:selected {{
-    background-color: rgba(0, 240, 255, 32);
+    background-color: #173c45;
+    color: #ffffff;
 }}
 QHeaderView::section {{
     background-color: {C_BG_PANEL};
     color: {C_TEXT_MUTED};
     font-weight: 800;
-    font-size: 10px;
-    letter-spacing: 1.5px;
-    padding: 9px 10px;
+    font-size: 11px;
+    padding: 12px 10px;
     border: none;
-    border-bottom: 2px solid {C_BORDER_LIGHT};
-    border-right: 1px solid {C_BG_DEEP};
+    border-bottom: 1px solid {C_BORDER_LIGHT};
 }}
-
-/* ═══════════════════════════ SCROLLBAR ════════════════════════ */
+QTableCornerButton::section {{ background-color: {C_BG_PANEL}; }}
 QScrollBar:vertical {{
     background: {C_BG_DEEP};
-    width: 8px;
+    width: 10px;
     margin: 0;
 }}
 QScrollBar::handle:vertical {{
     background: {C_BORDER_LIGHT};
     min-height: 28px;
-    border-radius: 4px;
+    border-radius: 5px;
 }}
-QScrollBar::handle:vertical:hover {{
-    background: {C_CYAN};
+QScrollBar::handle:vertical:hover {{ background: {C_CYAN_DIM}; }}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
+QScrollBar:horizontal {{
+    height: 10px;
+    background: {C_BG_DEEP};
 }}
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-    height: 0;
+QScrollBar::handle:horizontal {{
+    background: {C_BORDER_LIGHT};
+    border-radius: 5px;
 }}
-
-/* ═══════════════════════════ LOG & STATUS ═════════════════════ */
 QTextEdit#logBox {{
     background-color: {C_BG_DEEP};
     border: 1px solid {C_BORDER};
-    border-radius: 3px;
+    border-radius: 6px;
     color: {C_TEXT_MUTED};
-    font-size: 11px;
-    padding: 6px 8px;
+    font-family: 'DejaVu Sans Mono', monospace;
+    font-size: 12px;
+    padding: 9px 11px;
 }}
 QSplitter::handle {{
-    background-color: {C_BORDER};
-    width: 2px;
+    background-color: {C_BG_VOID};
 }}
-QSplitter::handle:hover {{
-    background-color: {C_CYAN};
-}}
+QSplitter::handle:hover {{ background-color: {C_BORDER_LIGHT}; }}
 QStatusBar {{
     background-color: {C_BG_DEEP};
     color: {C_TEXT_MUTED};
     border-top: 1px solid {C_BORDER};
     font-size: 11px;
 }}
-QMessageBox {{
+QStatusBar QLabel {{ color: {C_TEXT_MUTED}; font-size: 11px; }}
+QMessageBox, QDialog {{
     background-color: {C_BG_PANEL};
     color: {C_TEXT};
+}}
+QProgressBar {{
+    background-color: {C_BG_DEEP};
+    border: none;
+    border-radius: 3px;
+    height: 6px;
+}}
+QProgressBar::chunk {{
+    background-color: {C_GREEN};
+    border-radius: 3px;
+}}
+QScrollArea {{
+    background-color: transparent;
+    border: none;
 }}
 """
 
