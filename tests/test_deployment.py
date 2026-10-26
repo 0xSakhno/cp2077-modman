@@ -272,6 +272,28 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(snapshot["alpha"]["level"], "error")
         self.assertEqual(snapshot["beta"]["level"], "healthy")
 
+    def test_legacy_verifier_flags_foreign_link(self):
+        from core import analyzer
+        src = self.mod("alpha")
+        self.manager.enable_mod("alpha")
+        target = self.game / src.relative_to(self.mods / "alpha")
+        target.unlink()
+        foreign = self.root / "foreign"
+        foreign.write_text("foreign")
+        target.symlink_to(foreign)
+        with patch.object(analyzer, "MODS_DIR", self.mods):
+            issues = analyzer.verify_symlinks(self.state.state["mods"], self.game)
+        self.assertEqual([i.issue for i in issues], ["foreign_link"])
+
+    def test_legacy_verifier_flags_missing_original(self):
+        from core import analyzer
+        src = self.mod("alpha")
+        self.manager.enable_mod("alpha")
+        src.unlink()
+        with patch.object(analyzer, "MODS_DIR", self.mods):
+            issues = analyzer.verify_symlinks(self.state.state["mods"], self.game)
+        self.assertEqual([i.issue for i in issues], ["missing_source"])
+
     def test_reject_path_traversal_name(self):
         for bad in ("../escape", "/absolute", "a/b", ".."):
             with self.subTest(name=bad), self.assertRaises(ValueError):
