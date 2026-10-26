@@ -72,6 +72,55 @@ class DeploymentTests(unittest.TestCase):
             self.manager.disable_mod("alpha")
         self.assertEqual(target.resolve(), foreign)
 
+
+    def test_repair_identical_copy(self):
+        src = self.mod("alpha")
+        self.manager.enable_mod("alpha")
+        target = self.game / src.relative_to(self.mods / "alpha")
+        target.unlink()
+        target.write_bytes(src.read_bytes())
+        self.assertEqual(self.manager.inspect_reconcile("alpha"),
+                         [(str(src.relative_to(self.mods / "alpha")), "identical_copy")])
+        self.assertEqual(len(self.manager.repair_identical_copies("alpha")), 1)
+        self.assertTrue(target.is_symlink())
+        self.manager.disable_mod("alpha")
+        self.assertFalse(target.exists())
+
+    def test_repair_refuses_modified_copy(self):
+        src = self.mod("alpha")
+        self.manager.enable_mod("alpha")
+        target = self.game / src.relative_to(self.mods / "alpha")
+        target.unlink()
+        target.write_text("user settings changed")
+        with self.assertRaises(FileExistsError):
+            self.manager.repair_identical_copies("alpha")
+        self.assertEqual(target.read_text(), "user settings changed")
+
+    def test_repair_rolls_back_if_symlink_fails(self):
+        src = self.mod("alpha")
+        self.manager.enable_mod("alpha")
+        target = self.game / src.relative_to(self.mods / "alpha")
+        target.unlink()
+        target.write_bytes(src.read_bytes())
+        with patch.object(linker.os, "symlink", side_effect=OSError("link failed")):
+            with self.assertRaises(OSError):
+                self.manager.repair_identical_copies("alpha")
+        self.assertEqual(target.read_bytes(), src.read_bytes())
+        self.assertFalse(target.is_symlink())
+
+    def test_repair_refuses_when_other_target_missing(self):
+        src = self.mod("alpha")
+        extra = self.mod_extra("alpha", "archive/pc/mod/second.archive")
+        self.manager.enable_mod("alpha")
+        target = self.game / src.relative_to(self.mods / "alpha")
+        target.unlink()
+        target.write_bytes(src.read_bytes())
+        other = self.game / extra.relative_to(self.mods / "alpha")
+        other.unlink()
+        with self.assertRaises(FileExistsError):
+            self.manager.repair_identical_copies("alpha")
+        self.assertFalse(target.is_symlink())
+
     def test_reject_path_traversal_name(self):
         for bad in ("../escape", "/absolute", "a/b", ".."):
             with self.subTest(name=bad), self.assertRaises(ValueError):
