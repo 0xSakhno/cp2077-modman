@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QStatusBar, QDialog, QComboBox, QProgressBar, QScrollArea
 )
 from PySide6.QtCore import (
-    Qt, QSize, Signal, QPointF, QRectF, QTimer
+    Qt, QSize, Signal, QPointF, QRectF, QTimer, QLocale
 )
 from PySide6.QtGui import (
     QColor, QFont, QIcon, QPainter, QBrush, QPen, QPainterPath,
@@ -1255,6 +1255,8 @@ class CyberpunkModGUI(QMainWindow):
         self.mgr = ModManager()
         self.mod_health = {}
         self.setWindowTitle("CYBERPUNK 2077 // MOD DEPLOYMENT DECK")
+        # Prefer English for Qt-provided button and dialog labels too.
+        self.setLocale(QLocale("en_US"))
         self.resize(1440, 860)
         self.setMinimumSize(1020, 680)
         self.setStyleSheet(CYBERPUNK_QSS)
@@ -2109,6 +2111,7 @@ class CyberpunkModGUI(QMainWindow):
 
 
 if __name__ == "__main__":
+    QLocale.setDefault(QLocale("en_US"))
     app = QApplication(sys.argv)
     for font_name in ["JetBrains Mono", "Fira Code", "Noto Sans Mono"]:
         if QFontDatabase.hasFamily(font_name):
