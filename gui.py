@@ -892,10 +892,18 @@ class ModDetailsPanel(ChamferPanel):
         scroller = QScrollArea()
         scroller.setWidgetResizable(True)
         scroller.setFrameShape(QFrame.NoFrame)
+        scroller.setStyleSheet(
+            f"QScrollArea {{background-color: {C_BG_PANEL}; border: none;}}"
+            f"QScrollBar:vertical {{background: {C_BG_DEEP}; width: 9px;}}"
+        )
         scroller.viewport().setAutoFillBackground(False)
+        scroller.viewport().setStyleSheet(f"background-color: {C_BG_PANEL};")
         scroller.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         content = QWidget()
-        content.setAutoFillBackground(False)
+        content.setObjectName("inspectorCanvas")
+        content.setStyleSheet(
+            f"QWidget#inspectorCanvas {{background-color: {C_BG_PANEL}; color: {C_TEXT};}}"
+        )
         scroller.setWidget(content)
         layout = QVBoxLayout(content)
         layout.setContentsMargins(20, 15, 20, 16)
@@ -1034,8 +1042,8 @@ class ModDetailsPanel(ChamferPanel):
             f" border-top: 1px solid {C_BORDER_LIGHT};}}"
         )
         actions = QVBoxLayout(footer)
-        actions.setContentsMargins(17, 12, 17, 17)
-        actions.setSpacing(8)
+        actions.setContentsMargins(16, 10, 16, 12)
+        actions.setSpacing(7)
 
         self.btn_repair = QPushButton("ВІДНОВИТИ ПОСИЛАННЯ")
         self.btn_repair.setObjectName("btnYellow")
@@ -1045,17 +1053,21 @@ class ModDetailsPanel(ChamferPanel):
         self.btn_repair.hide()
         actions.addWidget(self.btn_repair)
 
+        footer_buttons = QHBoxLayout()
+        footer_buttons.setSpacing(8)
         self.btn_toggle = QPushButton("ПЕРЕМКНУТИ СТАН")
         self.btn_toggle.setObjectName("btnPrimary")
         self.btn_toggle.setIcon(VectorIcon.create("power", "#080c13", 15))
         self.btn_toggle.setCursor(Qt.PointingHandCursor)
-        actions.addWidget(self.btn_toggle)
+        footer_buttons.addWidget(self.btn_toggle, 2)
 
-        self.btn_delete = QPushButton("ВИДАЛИТИ МОДИФІКАЦІЮ")
+        self.btn_delete = QPushButton("ВИДАЛИТИ")
         self.btn_delete.setObjectName("btnDanger")
         self.btn_delete.setIcon(VectorIcon.create("trash", C_RED, 15))
+        self.btn_delete.setToolTip("Повністю видалити вибрану модифікацію")
         self.btn_delete.setCursor(Qt.PointingHandCursor)
-        actions.addWidget(self.btn_delete)
+        footer_buttons.addWidget(self.btn_delete, 1)
+        actions.addLayout(footer_buttons)
         shell.addWidget(footer)
         self.clear_details()
 
@@ -1468,7 +1480,7 @@ class CyberpunkModGUI(QMainWindow):
         log_layout.addWidget(self.log_box, 1)
 
         self.vertical_splitter.addWidget(log_frame)
-        self.vertical_splitter.setSizes([470, 175])
+        self.vertical_splitter.setSizes([580, 125])
         self.vertical_splitter.setStretchFactor(0, 1)
         self.vertical_splitter.setStretchFactor(1, 0)
         workspace.addWidget(self.vertical_splitter, stretch=1)
@@ -1480,9 +1492,11 @@ class CyberpunkModGUI(QMainWindow):
         self.setStatusBar(self.status_bar)
         self.lbl_status_path = QLabel()
         self.lbl_status_shortcuts = QLabel(
-            "ГАРЯЧІ КЛАВІШІ:  [SPACE] ПЕРЕМКНУТИ   //   [DEL] ВИДАЛИТИ   //   [CTRL+O] ДОДАТИ   //   [CTRL+F] ПОШУК"
+            "SPACE — стан    DEL — видалити    CTRL+O — додати    CTRL+K — пошук"
         )
-        self.lbl_status_shortcuts.setStyleSheet(f"color: {C_TEXT_DIM}; font-size: 10px; font-weight: 700;")
+        self.lbl_status_shortcuts.setStyleSheet(
+            f"color: {C_TEXT_MUTED}; font-family: 'DejaVu Sans Mono'; font-size: 10px;"
+        )
         self.status_bar.addWidget(self.lbl_status_path)
         self.status_bar.addPermanentWidget(self.lbl_status_shortcuts)
 
