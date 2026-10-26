@@ -166,7 +166,7 @@ class ModManager:
 
 
     def inspect_reconcile(self, mod_name: str):
-        """Read-only check of tracked deployed files."""
+        """Read-only audit of this enabled mod's tracked deployment."""
         mods = self.state_mgr.state["mods"]
         if mod_name not in mods:
             raise KeyError(f"Mod not found: {mod_name}")
@@ -178,12 +178,18 @@ class ModManager:
             rel = Path(rel_str)
             source = root / rel
             target = self._target(self.state_mgr.game_path, rel)
+            source_valid = source.is_file() and not source.is_symlink()
             if target.is_symlink():
-                status = "ok" if target.resolve() == source.resolve() else "foreign_link"
+                if target.resolve() != source.resolve():
+                    status = "foreign_link"
+                elif not source_valid:
+                    status = "missing_source"
+                else:
+                    status = "ok"
+            elif not source_valid:
+                status = "missing_source"
             elif target.is_file():
-                status = ("identical_copy" if source.is_file()
-                          and not source.is_symlink()
-                          and filecmp.cmp(source, target, shallow=False)
+                status = ("identical_copy" if filecmp.cmp(source, target, shallow=False)
                           else "modified_file")
             elif target.exists():
                 status = "unexpected_target"
@@ -192,6 +198,34 @@ class ModManager:
             if status != "ok":
                 report.append((rel_str, status))
         return report
+
+    def health_snapshot(self):
+        """Summarise all mods without modifying files or deployment state.
+
+        Levels: disabled, healthy, repairable, blocked, error.
+        A mod is repairable only when *every* issue can be safely reconciled.
+        """
+        results = {}
+        for name, data in self.state_mgr.state["mods"].items():
+            if not data.get("enabled"):
+                results[name] = {"level": "disabled", "issues": []}
+                continue
+            try:
+                issues = self.inspect_reconcile(name)
+            except (OSError, ValueError, RuntimeError, KeyError) as exc:
+                results[name] = {
+                    "level": "error", "issues": [],
+                    "error": str(exc),
+                }
+                continue
+            if not issues:
+                level = "healthy"
+            elif all(status in ("identical_copy", "missing") for _, status in issues):
+                level = "repairable"
+            else:
+                level = "blocked"
+            results[name] = {"level": level, "issues": issues}
+        return results
 
     def repair_identical_copies(self, mod_name: str):
         """Repair identical copies and absent targets, without touching altered files.
