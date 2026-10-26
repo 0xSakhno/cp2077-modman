@@ -961,11 +961,18 @@ class ModDetailsPanel(ChamferPanel):
                 child.widget().deleteLater()
         self.status_pill_layout.addWidget(StatusPill(text, color, filled))
 
-    def update_details(self, mod_name: str, mod_data: dict, game_path=None, mods_state=None):
+    def update_details(self, mod_name: str, mod_data: dict, game_path=None, mods_state=None, health=None):
         self.lbl_name.setText(mod_name)
         enabled = mod_data.get("enabled", False)
 
-        if enabled:
+        health_level = (health or {}).get("level")
+        if enabled and health_level == "repairable":
+            self._set_pill("REPAIR AVAILABLE", C_YELLOW, True)
+            self.set_accent(C_YELLOW)
+        elif enabled and health_level in ("blocked", "error"):
+            self._set_pill("MANUAL REVIEW", C_RED, True)
+            self.set_accent(C_RED)
+        elif enabled:
             self._set_pill("ACTIVE DEPLOYMENT", C_GREEN, True)
             self.set_accent(C_GREEN)
         else:
@@ -1048,6 +1055,7 @@ class CyberpunkModGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.mgr = ModManager()
+        self.mod_health = {}
         self.setWindowTitle("CYBERPUNK 2077 // MOD DEPLOYMENT DECK")
         self.resize(1180, 780)
         self.setMinimumSize(920, 600)
@@ -1411,8 +1419,10 @@ class CyberpunkModGUI(QMainWindow):
 
     # ────────────────────── Mod Table ──────────────────────
 
-    def refresh_table(self):
+    def refresh_table(self, recheck=True):
         selected_mod = self.get_selected_mod_name()
+        if recheck or not self.mod_health:
+            self.mod_health = self.mgr.health_snapshot()
         self.table.setRowCount(0)
 
         mods = self.mgr.state_mgr.state.get("mods", {})
@@ -1442,17 +1452,39 @@ class CyberpunkModGUI(QMainWindow):
             th_layout.addWidget(sw)
             self.table.setCellWidget(row, 0, toggle_holder)
 
-            # Col 1: Vector Status Pill
+            # Col 1: Health-aware status, audited without modifying game files.
+            health = self.mod_health.get(name, {"level": "disabled", "issues": []})
+            level = health["level"]
+            health_styles = {
+                "healthy": ("ACTIVE", C_GREEN, True),
+                "disabled": ("STANDBY", C_TEXT_DIM, False),
+                "repairable": ("REPAIR", C_YELLOW, True),
+                "blocked": ("ISSUE", C_RED, True),
+                "error": ("ERROR", C_RED, True),
+            }
+            label, color, filled = health_styles.get(level, ("UNKNOWN", C_ORANGE, False))
+            tooltip_lines = [f"Стан мода: {level}"]
+            if health.get("error"):
+                tooltip_lines.append(health["error"])
+            tooltip_lines.extend(
+                f"{path}: {issue}" for path, issue in health.get("issues", [])[:12]
+            )
+            if len(health.get("issues", [])) > 12:
+                tooltip_lines.append("…")
+            health_tooltip = "\n".join(tooltip_lines)
             pill_holder = QWidget()
+            pill_holder.setToolTip(health_tooltip)
             ph_layout = QHBoxLayout(pill_holder)
             ph_layout.setContentsMargins(6, 0, 6, 0)
             ph_layout.setAlignment(Qt.AlignCenter)
-            pill = StatusPill("ACTIVE" if enabled else "STANDBY", C_GREEN if enabled else C_TEXT_DIM, enabled)
+            pill = StatusPill(label, color, filled)
+            pill.setToolTip(health_tooltip)
             ph_layout.addWidget(pill)
             self.table.setCellWidget(row, 1, pill_holder)
 
             # Col 2: Mod Name
             name_item = QTableWidgetItem(name)
+            name_item.setToolTip(health_tooltip)
             name_item.setData(Qt.UserRole, name)
             name_font = QFont("JetBrains Mono", 11)
             name_font.setBold(enabled)
@@ -1505,7 +1537,7 @@ class CyberpunkModGUI(QMainWindow):
             self.details_panel.clear_details()
 
     def filter_table(self, text: str):
-        self.refresh_table()
+        self.refresh_table(recheck=False)
 
     def _on_selection_changed(self, row: int, col: int, prev_row: int, prev_col: int):
         if row < 0:
@@ -1520,7 +1552,8 @@ class CyberpunkModGUI(QMainWindow):
             self.details_panel.update_details(
                 mod_name, mod_data,
                 game_path=self.mgr.state_mgr.game_path,
-                mods_state=self.mgr.state_mgr.state.get("mods", {})
+                mods_state=self.mgr.state_mgr.state.get("mods", {}),
+                health=self.mod_health.get(mod_name),
             )
 
     def _on_switch_toggled(self, mod_name: str, target_state: bool):
@@ -1649,9 +1682,9 @@ class CyberpunkModGUI(QMainWindow):
             reply = QMessageBox.question(
                 self,
                 "Безпечне відновлення симлінків",
-                f"Мод: {mod_name}\\n\\n"
-                f"Ідентичних копій: {len(copies)}. Відсутніх файлів: {len(missing)}.\\n"
-                "Відновити символічні посилання для цих файлів?\\n"
+                f"Мод: {mod_name}\n\n"
+                f"Ідентичних копій: {len(copies)}. Відсутніх файлів: {len(missing)}.\n"
+                "Відновити символічні посилання для цих файлів?\n"
                 "Змінені або сторонні файли не будуть перезаписані.",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
@@ -1665,32 +1698,39 @@ class CyberpunkModGUI(QMainWindow):
             self.log("ERR", f"{mod_name}: {e}", C_RED)
 
     def verify_all_symlinks(self):
-        self.log("VERIFY", "Перевірка цілісності симлінків у директорії гри...", C_CYAN)
+        self.log("VERIFY", "Аудит стану файлів усіх активних модів...", C_CYAN)
         QApplication.processEvents()
-
-        mods = self.mgr.state_mgr.state.get("mods", {})
-        game_path = self.mgr.state_mgr.game_path
-        issues = verify_symlinks(mods, game_path)
-
-        if not issues:
-            self.log("OK", "Перевірку завершено: усі симлінки активних модів цілісні.", C_GREEN)
+        self.mod_health = self.mgr.health_snapshot()
+        problems = 0
+        for mod_name, health in self.mod_health.items():
+            level = health["level"]
+            if level in ("disabled", "healthy"):
+                continue
+            problems += 1
+            if level == "error":
+                self.log("ERR", f"{mod_name}: помилка сканування: {health.get('error', 'невідома')}", C_RED)
+                continue
+            counts = {}
+            for _, status in health["issues"]:
+                counts[status] = counts.get(status, 0) + 1
+            descriptions = {
+                "identical_copy": "ідентичних копій",
+                "missing": "відсутніх посилань",
+                "missing_source": "відсутніх оригіналів",
+                "modified_file": "змінених файлів",
+                "foreign_link": "чужих посилань",
+                "unexpected_target": "невідомих об’єктів",
+            }
+            parts = [f"{count} {descriptions.get(status, status)}"
+                     for status, count in counts.items()]
+            hint = "можна відновити через REPAIR" if level == "repairable" else "потрібна ручна перевірка"
+            self.log("ISSUE", f"{mod_name}: {', '.join(parts)} — {hint}",
+                     C_YELLOW if level == "repairable" else C_RED)
+        if problems == 0:
+            self.log("OK", "Аудит пройдено: всі активні моди мають справні симлінки.", C_GREEN)
         else:
-            by_mod: dict[str, list] = {}
-            for issue in issues:
-                by_mod.setdefault(issue.mod_name, []).append(issue)
-
-            for mod_name, mod_issues in by_mod.items():
-                broken = sum(1 for i in mod_issues if i.issue == "broken")
-                missing = sum(1 for i in mod_issues if i.issue == "missing")
-                overwritten = sum(1 for i in mod_issues if i.issue == "not_symlink")
-                parts = []
-                if broken:
-                    parts.append(f"{broken} пошкоджено")
-                if missing:
-                    parts.append(f"{missing} відсутні")
-                if overwritten:
-                    parts.append(f"{overwritten} перезаписано")
-                self.log("ISSUE", f"<b>{mod_name}</b>: {', '.join(parts)}", C_ORANGE)
+            self.log("VERIFY", f"Модів із проблемами: {problems}. Подробиці також у колонці СТАТУС.", C_ORANGE)
+        self.refresh_table(recheck=False)
 
     def launch_game(self):
         self.log("EXEC", "Підготовка запуску через Steam (AppID 1091500)...", C_YELLOW)
