@@ -1103,7 +1103,9 @@ class ModDetailsPanel(ChamferPanel):
                 widget.hide()
                 widget.setParent(None)
                 widget.deleteLater()
-        self.status_pill_layout.addWidget(StatusPill(text, color, filled))
+        pill = StatusPill(text, color, filled)
+        self.status_pill_layout.addWidget(pill)
+        pill.show()
 
     def update_details(self, mod_name: str, mod_data: dict, game_path=None, mods_state=None, health=None):
         display_name, archive_metadata = compact_mod_identity(mod_name)
