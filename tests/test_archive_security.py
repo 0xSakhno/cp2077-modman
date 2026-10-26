@@ -167,6 +167,37 @@ class ArchiveSecurityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Керівні"):
             normalizer.extract_archive(archive, self.dest)
 
+    def test_valid_archive_installs_and_disables_end_to_end(self):
+        archive = self._zip([("r6/scripts/example.reds", "print('hello')")])
+        game = self.root / "game"
+        game.mkdir()
+        mods = self.root / "mods"
+        mods.mkdir()
+        staging = self.root / "staging"
+        staging.mkdir()
+
+        class FakeState:
+            game_path = game
+            def __init__(self):
+                self.state = {"mods": {}}
+            def save(self):
+                pass
+
+        manager = linker.ModManager.__new__(linker.ModManager)
+        manager.state_mgr = FakeState()
+        with patch.object(linker, "MODS_DIR", mods), patch.object(linker, "TEMP_DIR", staging):
+            manager.install_from_archive(str(archive), "example")
+            target = game / "r6/scripts/example.reds"
+            source = mods / "example/r6/scripts/example.reds"
+            self.assertTrue(target.is_symlink())
+            self.assertEqual(target.resolve(), source.resolve())
+            self.assertEqual(source.read_text(), "print('hello')")
+            self.assertTrue(manager.state_mgr.state["mods"]["example"]["enabled"])
+            manager.disable_mod("example")
+            self.assertFalse(target.is_symlink())
+            self.assertFalse(target.exists())
+            self.assertTrue(source.exists())
+
     def test_bad_archive_never_registers_or_deploys_mod(self):
         archive = self._zip([
             ("r6/scripts/good.reds", "safe"),
